@@ -150,9 +150,9 @@ class SongDetails(GObject.Object):
     starred = GObject.Property(type=bool, default=False, nick=_("Favorite"))
     duration = GObject.Property(type=int, nick=_("Duration"))
 
-    bitRate = GObject.Property(type=int, nick=_("bit Rate"))
-    bitDepth = GObject.Property(type=int, nick=_("bit Depth"))
-    samplingRate = GObject.Property(type=int, nick=_("sampling Rate"))
+    bitRate = GObject.Property(type=int, nick=_("Bit Rate"))
+    bitDepth = GObject.Property(type=int, nick=_("Bit Depth"))
+    samplingRate = GObject.Property(type=int, nick=_("Sampling Rate"))
     channelCount = GObject.Property(type=int, nick=_("Channel Count"))
 
     path = GObject.Property(type=str, nick=_("Path"))
