@@ -1,15 +1,14 @@
-# SOME DESCRIPTIVE TITLE.
+# Croatian translation for Nocturne.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# This file is distributed under the same license as the Nocturne package.
+# Milo Ivir <mail@milotype.de>, 2026.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-05-05 18:30-0600\n"
-"PO-Revision-Date: 2026-05-16 22:16+0200\n"
+"PO-Revision-Date: 2026-05-16 22:33+0200\n"
 "Last-Translator: Milo Ivir <mail@milotype.de>\n"
 "Language-Team: \n"
 "Language: hr\n"
