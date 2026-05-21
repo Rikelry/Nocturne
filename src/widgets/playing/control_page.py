@@ -202,12 +202,21 @@ class PlayingControlPage(Adw.NavigationPage):
             integration.verifySong(song_id, use_threading=False)
             if model := integration.loaded_models.get(song_id):
                 # Set CoverArt
-                if paintable := integration.getCoverArt(song_id, big=True):
-                    GLib.idle_add(self.cover_el.set_paintable, paintable)
-                    GLib.idle_add(self.cover_el.set_visible, True)
+                paintable = integration.getCoverArt(song_id, big=True)
+                if paintable:
+                    GLib.idle_add(self.cover_el.remove_css_class, 'p50')
                 else:
-                    GLib.idle_add(self.cover_el.set_paintable, None)
-                    GLib.idle_add(self.cover_el.set_visible, False)
+                    icon_theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
+                    paintable = icon_theme.lookup_icon(
+                        'music-note-symbolic',
+                        None,
+                        64,
+                        1,
+                        Gtk.TextDirection.NONE,
+                        0
+                    )
+                    GLib.idle_add(self.cover_el.add_css_class, 'p50')
+                GLib.idle_add(self.cover_el.set_paintable, paintable)
 
                 # Set Defaults
                 GLib.idle_add(self.rating_container.set_visible, True)

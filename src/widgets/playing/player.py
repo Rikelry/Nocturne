@@ -530,7 +530,7 @@ class Player(EventAdapter):
             blurred_img = small_img.filter(ImageFilter.GaussianBlur(radius=2))
             if blurred_img.mode != "RGBA":
                 blurred_img = blurred_img.convert("RGBA")
-            blurred_img.putalpha(int(255 * 0.5))
+            blurred_img.putalpha(int(255 * 0.3))
             buffer = io.BytesIO()
             blurred_img.save(buffer, format="PNG")
             blur_str = "data:image/png;base64,{}".format(base64.b64encode(buffer.getvalue()).decode("utf-8"))
@@ -569,7 +569,7 @@ class Player(EventAdapter):
             if model := integration.loaded_models.get(songId):
                 integration.loaded_models.get('currentSong').set_property('displaySongTitle', model.get_property('title'))
                 if stream_url := model.get_property('radioStreamUrl'):
-                    integration.loaded_models.get('currentSong').set_property('displaySongArtist', stream_url.netloc.capitalize())
+                    integration.loaded_models.get('currentSong').set_property('displaySongArtist', urlparse(stream_url).netloc.capitalize())
                 else:
                     artists = model.get_property('artists')
                     if len(artists) > 0:
