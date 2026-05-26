@@ -31,6 +31,9 @@ class PlayingCoverArt(Gtk.Box):
             integration = get_current_integration()
             if songId in integration.loaded_models:
                 paintable = integration.getCoverArt(songId, big=True)
+                if not paintable:
+                    paintable = integration.getCoverArt(songId)
+
                 if paintable:
                     GLib.idle_add(self.cover_el.remove_css_class, 'p50')
                 else:
