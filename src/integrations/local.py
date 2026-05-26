@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import requests, random, threading, io, pathlib, re, json, os, time, uuid, pwd, getpass, time, shutil
 from PIL import Image
 from tinytag import TinyTag
-from ..constants import DOWNLOADS_DIR, get_song_info_from_file
+from ..constants import DOWNLOADS_DIR, COMPATIBLE_EXTENSIONS, get_song_info_from_file
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 
@@ -75,7 +75,7 @@ class Local(Base):
                     # Exclude any hidden files/folders within the library path
                     if any(part.startswith(".") for part in file_path.relative_to(path_obj).parts):
                         continue
-                    if file_path.suffix.lower() in ('.mp3', '.flac', '.m4a', '.oga', '.ogg', '.opus', '.wav'):
+                    if file_path.suffix.lower() in COMPATIBLE_EXTENSIONS.get('audio') + COMPATIBLE_EXTENSIONS.get('video'):
                         song_id = 'SONG:{}'.format(file_path)
                         self.loaded_models[song_id] = models.Song(
                             id=song_id,
@@ -402,7 +402,7 @@ class Local(Base):
             'artist': [model.id for model in all_artists if re.search(query, model.name, re.IGNORECASE)][artistOffset:artistCount+artistOffset],
             'album': [model.id for model in all_albums if re.search(query, model.name, re.IGNORECASE) or re.search(query, model.artist, re.IGNORECASE)][albumOffset:albumCount+albumOffset],
             'song': [model.id for model in all_songs if re.search(query, model.title, re.IGNORECASE) or re.search(query, model.album, re.IGNORECASE) or re.search(query, model.artist, re.IGNORECASE)][songOffset:songCount+songOffset],
-            'playlist': [model.id for model in all_playlists if re.search(query, model.title, re.IGNORECASE)][playlistOffset:playlistCount+playlistOffset]
+            'playlist': [model.id for model in all_playlists if re.search(query, model.name, re.IGNORECASE)][playlistOffset:playlistCount+playlistOffset]
         }
 
     def getInternetRadioStations(self) -> list:
