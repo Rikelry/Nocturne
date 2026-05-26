@@ -138,8 +138,6 @@ class Local(Base):
 
     def getCoverArt(self, model_id:str='', big:bool=False) -> Gdk.Paintable:
         if model := self.loaded_models.get(model_id):
-            if isinstance(model, models.Song) and model.get_property('radioStreamUrl'):
-                return None
             if not big and not isinstance(model, models.Playlist) and model.get_property('gdkPaintable'):
                 return model.get_property('gdkPaintable')
 

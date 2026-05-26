@@ -146,8 +146,6 @@ class Jellyfin(Base):
 
     def getCoverArt(self, model_id:str='', big:bool=False) -> Gdk.Paintable:
         if model := self.loaded_models.get(model_id):
-            if isinstance(model, models.Song) and model.get_property('radioStreamUrl'):
-                return None
             if isinstance(model, models.Song) and model.get_property('isExternalFile'):
                 return local.Local.getCoverArt(self, model_id, big=big)
             if not big and model.get_property('gdkPaintable') is not None:
@@ -186,7 +184,7 @@ class Jellyfin(Base):
 
     def getCoverArtUrl(self, model_id:str='', big:bool=False) -> str:
         if model := self.loaded_models.get(model_id):
-            if isinstance(model, models.Song) and (model.get_property('radioStreamUrl') or model.get_property('isExternalFile')):
+            if isinstance(model, models.Song) and model.get_property('isExternalFile'):
                 return ""
             params = {
                 'maxWidth': 720 if big else 240,
