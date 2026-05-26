@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-26 15:24-0600\n"
+"POT-Creation-Date: 2026-05-26 15:57-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1750,6 +1750,10 @@ msgstr ""
 
 #: src/widgets/playing/lyrics_page.py:215
 msgid "LRC File"
+msgstr ""
+
+#: src/widgets/playing/player.py:621
+msgid "Warning: Song changed but volume is set to 0"
 msgstr ""
 
 #: src/widgets/playlist/button.py:64 src/widgets/playlist/page.py:118

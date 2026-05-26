@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-26 15:24-0600\n"
+"POT-Creation-Date: 2026-05-26 15:57-0600\n"
 "PO-Revision-Date: 2026-03-25 15:34-0600\n"
 "Last-Translator: Jeffry Samuel <jeffrysamuer@gmail.com>\n"
 "Language-Team: Spanish <es@tp.org.es>\n"
@@ -1769,6 +1769,10 @@ msgstr "Integración"
 #: src/widgets/playing/lyrics_page.py:215
 msgid "LRC File"
 msgstr "Archivo LRC"
+
+#: src/widgets/playing/player.py:621
+msgid "Warning: Song changed but volume is set to 0"
+msgstr "Advertencia: La canción ha cambiado, pero el volumen está en 0"
 
 #: src/widgets/playlist/button.py:64 src/widgets/playlist/page.py:118
 #: src/widgets/playlist/row.py:48 src/widgets/playlist/selector_row.py:37
