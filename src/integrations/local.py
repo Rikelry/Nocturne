@@ -136,6 +136,8 @@ class Local(Base):
         return 'file://{}'.format(model.get_property('path'))
 
     def getCoverArt(self, model_id:str='', big:bool=False) -> Gdk.Paintable:
+        if not model_id:
+            return None
         if model := self.loaded_models.get(model_id):
             if not big and not isinstance(model, models.Playlist) and model.get_property('gdkPaintable'):
                 return model.get_property('gdkPaintable')

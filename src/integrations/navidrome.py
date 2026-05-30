@@ -88,6 +88,8 @@ class Navidrome(Base):
         return '{}/rest/stream?{}'.format(self.get_property('url').strip('/'), query_string)
 
     def getCoverArt(self, model_id:str='', big:bool=False) -> Gdk.Paintable:
+        if not model_id:
+            return None
         if model := self.loaded_models.get(model_id):
             if isinstance(model, models.Song) and model.get_property('isExternalFile'):
                 return local.Local.getCoverArt(self, model_id, big=big)
