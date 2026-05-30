@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nocturne\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-26 20:33+0200\n"
-"PO-Revision-Date: 2026-05-26 20:44+0200\n"
+"POT-Creation-Date: 2026-05-27 21:16+0200\n"
+"PO-Revision-Date: 2026-05-27 21:24+0200\n"
 "Last-Translator: Ibai Oihanguren Sala <ibaios@disroot.org>\n"
 "Language-Team: Basque\n"
 "Language: eu\n"
@@ -547,12 +547,12 @@ msgstr "Jellyfin"
 msgid "Use an existing Jellyfin instance"
 msgstr "Erabili existitzen den Jellyfin zerbitzari bat"
 
-#: src/integrations/jellyfin.py:958
+#: src/integrations/jellyfin.py:956
 msgid "Unknown"
 msgstr "Ezezaguna"
 
 #: src/integrations/local.py:22 src/integrations/local.py:28
-#: src/integrations/local.py:587
+#: src/integrations/local.py:585
 msgid "Local Files"
 msgstr "Fitxategi lokalak"
 
@@ -578,15 +578,15 @@ msgstr "Funtzionalitate mugatua"
 msgid "Loading Songs"
 msgstr "Abestiak kargatzen"
 
-#: src/integrations/local.py:282
+#: src/integrations/local.py:280
 msgid "No Album"
 msgstr "Albumik ez"
 
-#: src/integrations/local.py:603 src/integrations/local.py:612
+#: src/integrations/local.py:601 src/integrations/local.py:610
 msgid "Offline Mode"
 msgstr "Offline modua"
 
-#: src/integrations/local.py:604
+#: src/integrations/local.py:602
 msgid "Access your downloads"
 msgstr "Atzitu zure deskargak"
 
@@ -682,20 +682,20 @@ msgstr "Kanpoko zerbitzaria"
 msgid "Use an existing OpenSubsonic / Navidrome instance"
 msgstr "Erabili existitzen den OpenSubsonic / Navidrome instantzia bat"
 
-#: src/integrations/navidrome.py:587 src/integrations/navidrome.py:596
+#: src/integrations/navidrome.py:585 src/integrations/navidrome.py:594
 msgid "Managed Server"
 msgstr "Zerbitzari kudeatua"
 
-#: src/integrations/navidrome.py:588
+#: src/integrations/navidrome.py:586
 msgid "Connect to a Navidrome instance directly managed by Nocturne."
 msgstr ""
 "Konektatu Nocturnek zuzenean kudea dezakeen Navidrome instantzia batera."
 
-#: src/integrations/navidrome.py:591
+#: src/integrations/navidrome.py:589
 msgid "Manage Server"
 msgstr "Kudeatu zerbitzaria"
 
-#: src/integrations/navidrome.py:597
+#: src/integrations/navidrome.py:595
 msgid "Create and use a Navidrome instance"
 msgstr "Sortu eta erabili Navidrome instantzia"
 
@@ -757,6 +757,7 @@ msgid "Enter album page"
 msgstr "Sartu albumaren orrira"
 
 #: src/ui/album/button.blp:113 src/ui/album/page.blp:85
+#: src/ui/song/button.blp:81
 msgid "Enter artist page"
 msgstr "Sartu artistaren orrira"
 
@@ -972,6 +973,38 @@ msgstr "Pasahitza"
 msgid "Use Quick Connect"
 msgstr "Erabili konexio bizkorra"
 
+#: src/ui/pages/playback.blp:5 src/ui/shortcuts-dialog.blp:25
+msgid "Playback"
+msgstr "Erreprodukzioa"
+
+#: src/ui/pages/playback.blp:17
+msgid "Go Home"
+msgstr "Joan Hasierara"
+
+#: src/ui/pages/playback.blp:24
+msgid "Toggle Visualizer"
+msgstr "Erakutsi / ezkutatu bistaratzailea"
+
+#: src/ui/pages/playback.blp:54 src/window.py:202
+msgid "Nocturne Playback"
+msgstr "Nocturne - Erreprodukzioa"
+
+#: src/ui/pages/playback.blp:64
+msgid "These are your most played songs from last month"
+msgstr "Hauek dira azken hilean gehien entzun dituzun abestiak"
+
+#: src/ui/pages/playback.blp:83 src/ui/pages/playback.blp:85
+msgid "Save Playlist"
+msgstr "Gorde erreprodukzio-zerrenda"
+
+#: src/ui/pages/playback.blp:98 src/ui/pages/playback.blp:100
+msgid "Playlist Added"
+msgstr "Erreprodukzio-zerrenda gehitu da"
+
+#: src/ui/pages/playback.blp:123
+msgid "Thank you for using Nocturne!"
+msgstr "Milesker Nocturne erabiltzeagatik!"
+
 #: src/ui/pages/playlists.blp:31
 msgid "Search playlists"
 msgstr "Bilatu erreprodukzio-zerrendak"
@@ -1091,6 +1124,18 @@ msgstr "Eman izarra"
 msgid "Show Sidebar"
 msgstr "Erakutsi alboko barra"
 
+#: src/ui/playing/cover_art.blp:28
+msgid "Audio"
+msgstr "Audioa"
+
+#: src/ui/playing/cover_art.blp:36 src/ui/song/details_dialog.blp:34
+msgid "Song Cover"
+msgstr "Abestiaren azala"
+
+#: src/ui/playing/cover_art.blp:42 src/ui/playing/cover_art.blp:50
+msgid "Video"
+msgstr "Bideoa"
+
 #: src/ui/playing/equalizer_page.blp:21
 msgid "Presets"
 msgstr "Aurrezarpenak"
@@ -1174,7 +1219,8 @@ msgstr "Erreproduzitzailea"
 msgid "Toggle Fullscreen"
 msgstr "Pantaila osoa gaitu / ezgaitu"
 
-#: src/ui/playing/popout_window.blp:285 src/ui/window.blp:199
+#: src/ui/playing/popout_window.blp:285 src/ui/song/details_dialog.blp:5
+#: src/ui/window.blp:199
 msgid "Song Details"
 msgstr "Abestiaren xehetasunak"
 
@@ -1536,10 +1582,6 @@ msgstr "Erakutsi hobespenak"
 msgid "Quit"
 msgstr "Irten"
 
-#: src/ui/shortcuts-dialog.blp:25
-msgid "Playback"
-msgstr "Erreprodukzioa"
-
 #: src/ui/shortcuts-dialog.blp:27
 msgid "Toggle Playback"
 msgstr "Erreproduzitu / Gelditu"
@@ -1568,6 +1610,18 @@ msgstr "Leihoa"
 msgid "Open Pop-Out Window"
 msgstr "Ireki leiho gainerakorra"
 
+#: src/ui/song/button.blp:16
+msgid "Play Song"
+msgstr "Erreproduzitu abestia"
+
+#: src/ui/song/button.blp:31 src/ui/song/small_row.blp:37
+msgid "Song cover art"
+msgstr "Abestiaren azala"
+
+#: src/ui/song/button.blp:45
+msgid "Play Indicator"
+msgstr "Erreprodukzio-adierazlea"
+
 #: src/ui/song/row.blp:41
 msgid "Drag icon"
 msgstr "Arrastatze ikonoa"
@@ -1575,10 +1629,6 @@ msgstr "Arrastatze ikonoa"
 #: src/ui/song/row.blp:139
 msgid "Selection box"
 msgstr "Hautapen kutxa"
-
-#: src/ui/song/small_row.blp:37
-msgid "Song cover art"
-msgstr "Abestiaren azala"
 
 #: src/ui/window.blp:79
 msgid "Play Random Queue"
@@ -1684,6 +1734,14 @@ msgstr "Errorea kodea lortzean"
 msgid "Quick Connect Page"
 msgstr "Konexio bizkorrerako orria"
 
+#: src/widgets/pages/playback.py:29
+msgid "Nocturne Playback ~ {}"
+msgstr "Nocturne erreprodukzioa ~ {}"
+
+#: src/widgets/pages/playback.py:48 src/widgets/pages/playback.py:57
+msgid "{} Plays"
+msgstr "{} erreprodukzio"
+
 #: src/widgets/pages/setup.py:63
 msgid "Installing"
 msgstr "Instalatzen"
@@ -1695,6 +1753,10 @@ msgstr "Integrazioa"
 #: src/widgets/playing/lyrics_page.py:215
 msgid "LRC File"
 msgstr "LRC fitxategia"
+
+#: src/widgets/playing/player.py:621
+msgid "Warning: Song changed but volume is set to 0"
+msgstr "Abisua: Abestia aldatu da, baina bolumena zeroan dago"
 
 #: src/widgets/playlist/button.py:64 src/widgets/playlist/page.py:118
 #: src/widgets/playlist/row.py:48 src/widgets/playlist/selector_row.py:37
@@ -1711,13 +1773,21 @@ msgstr "Erreprodukzio-zerrenda berria"
 msgid "Add Songs to '{}'"
 msgstr "Gehitu abestiak hona: '{}'"
 
+#: src/widgets/song/details_dialog.py:23
+msgid "Yes"
+msgstr "Bai"
+
+#: src/widgets/song/details_dialog.py:23
+msgid "No"
+msgstr "Ez"
+
+#: src/widgets/song/details_dialog.py:28
+msgid "Not Found"
+msgstr "Ez da aurkitu"
+
 #: src/widgets/song/row.py:147 src/widgets/song/row.py:152
 msgid "Multiple Artists"
 msgstr "Hainbat artista"
-
-#: src/window.py:202
-msgid "Nocturne Playback"
-msgstr "Nocturne - Erreprodukzioa"
 
 #: src/window.py:203
 msgid "Your Playback queue for {} is available!"
@@ -1733,9 +1803,6 @@ msgstr "Geroago"
 
 #~ msgid "Not enough songs found for Playback ({})"
 #~ msgstr "Ez dira erreprodukziorako behar beste abesti aurkitu ({})"
-
-#~ msgid "Song Cover"
-#~ msgstr "Abestiaren azala"
 
 #~ msgid "Generating next queue"
 #~ msgstr "Hurrengo ilara sortzen"
