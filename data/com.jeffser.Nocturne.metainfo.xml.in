@@ -91,6 +91,21 @@
   </keywords>
 
   <releases>
+    <release version="1.2.2" date="2026-05-31">
+      <url type="details">https://github.com/Jeffser/Nocturne/releases/tag/1.2.2</url>
+      <description translate="no">
+        <p>New</p>
+        <ul>
+          <li>Added option to ignore gain in songs and albums</li>
+          <li>Allowed instances to provide cover art for radios</li>
+          <li>Added error details on failed login for troubleshooting</li>
+        </ul>
+        <p>Fixes</p>
+        <ul>
+          <li>Fixed bug where artist name is not updated with song if metadata is not available when the song changes</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.2.1" date="2026-05-26">
       <url type="details">https://github.com/Jeffser/Nocturne/releases/tag/1.2.1</url>
       <description translate="no">
