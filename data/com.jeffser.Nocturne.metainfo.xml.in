@@ -103,6 +103,7 @@
         <p>Fixes</p>
         <ul>
           <li>Fixed bug where artist name is not updated with song if metadata is not available when the song changes</li>
+          <li>Fixed bug where Nocturne can not close gracefully sometimes</li>
         </ul>
       </description>
     </release>

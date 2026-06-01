@@ -76,9 +76,11 @@ class NocturneWindow(Adw.ApplicationWindow):
                 integration.terminate_instance()
             self.settings.set_int('default-width', self.get_width())
             self.settings.set_int('default-height', self.get_height())
-            if player := self.get_application().player:
-                player.discord_rpc.close()
-            GLib.idle_add(self.get_application().quit)
+            if app := self.get_application():
+                if player := app.player:
+                    GLib.idle_add(player.discord_rpc.close)
+                    GLib.idle_add(player.mpris.quit)
+                GLib.idle_add(app.quit)
 
     @Gtk.Template.Callback()
     def on_sidebar_activated(self, sidebar, index):
