@@ -422,6 +422,7 @@ CONTEXT_SONG = {
         "icon-name": "music-artist-symbolic",
         "action-name": "app.show_artist_from_song"
     },
+    "rating": {}, # special case
     "delete-radio": {
         "name": _("Delete"),
         "css": ["error"],
