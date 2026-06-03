@@ -60,6 +60,19 @@ Nocturne is packaged unofficially in the AUR, to install it first make sure you 
 yay -S nocturne
 ```
 
+### NixOS/nix
+Nocturne is packaged unofficially in nixpkgs.
+You can either try it out using nix-shell:
+```sh
+nix-shell -p nocturne
+```
+or add it to your sytem packages:
+```nix
+  environment.systemPackages = [
+    pkgs.nocturne
+  ];
+```
+
 ## Build
 ### Linux (Flatpak)
 Dependencies are automatically managed and built depending on host environment.
