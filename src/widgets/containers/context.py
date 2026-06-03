@@ -36,17 +36,42 @@ def get_context_buttons_list(options:dict, model_id:str, cb_handler:callable=Non
         cb_handler = lambda btn, callback: callback() if callback else None
     buttons = []
     for data in options.values():
-        btn = ContextButton(data.get('name', ""), data.get('icon-name', ""), data.get('css', []), connect_style)
-        if data.get('sensitive', True):
-            btn.connect('clicked', cb_handler, data.get('connection'))
-        if data.get('action-name') and data.get('sensitive', True):
-            btn.set_action_name(data.get('action-name'))
-            if data.get('action-target'):
-                btn.set_action_target_value(GLib.Variant.new_string(data.get('action-target')))
-            elif model_id:
-                btn.set_action_target_value(GLib.Variant.new_string(model_id))
-        btn.set_sensitive(data.get('sensitive', True))
-        buttons.append(btn)
+        if data.get('special') == 'song-rating':
+            buttons.append(Gtk.Separator(
+                margin_top=5,
+                margin_bottom=5
+            ))
+            container = Gtk.Box(
+                orientation=Gtk.Orientation.HORIZONTAL,
+                css_classes=["linked"]
+            )
+            for i in range(1,6):
+                btn = Gtk.Button(
+                    tooltip_text=_("{} Stars").format(i) if i != 1 else _("1 Star"),
+                    icon_name="starred-symbolic" if data.get('value', 0) >= i else "non-starred-symbolic",
+                    css_classes=["flat"]
+                )
+                target_value = GLib.Variant('a{sv}', {
+                    'model_id': GLib.Variant('s', model_id),
+                    'rating': GLib.Variant('i', i)
+                })
+                btn.set_action_name('app.set_rating')
+                btn.set_action_target_value(target_value)
+                btn.connect('clicked', cb_handler, data.get('connection'))
+                container.append(btn)
+            buttons.append(container)
+        else:
+            btn = ContextButton(data.get('name', ""), data.get('icon-name', ""), data.get('css', []), connect_style)
+            if data.get('sensitive', True):
+                btn.connect('clicked', cb_handler, data.get('connection'))
+            if data.get('action-name') and data.get('sensitive', True):
+                btn.set_action_name(data.get('action-name'))
+                if data.get('action-target'):
+                    btn.set_action_target_value(GLib.Variant.new_string(data.get('action-target')))
+                elif model_id:
+                    btn.set_action_target_value(GLib.Variant.new_string(model_id))
+            btn.set_sensitive(data.get('sensitive', True))
+            buttons.append(btn)
     return buttons
 
 class ContextContainer(Gtk.Box):

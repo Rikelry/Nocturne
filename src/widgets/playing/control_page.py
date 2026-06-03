@@ -91,17 +91,11 @@ class PlayingControlPage(Adw.NavigationPage):
     @Gtk.Template.Callback()
     def change_rating(self, button):
         integration = get_current_integration()
-        songId = integration.loaded_models.get('currentSong').get_property('songId')
-        try:
-            rating = int(button.get_name())
-            if rating == integration.loaded_models.get(songId).get_property('userRating'):
-                rating = 0
-        except:
-            return
-
-        if integration.setRating(songId, rating):
-            for i, el in enumerate(list(self.rating_container)):
-                el.set_icon_name("starred-symbolic" if rating >= i+1 else "non-starred-symbolic")
+        target_value = GLib.Variant('a{sv}', {
+            'model_id': GLib.Variant('s', integration.loaded_models.get('currentSong').get_property('songId')),
+            'rating': GLib.Variant('i', int(button.get_name()))
+        })
+        self.get_root().activate_action("app.set_rating", target_value)
 
     def change_bottom_sheet_state(self, playing:bool):
         bottom_sheet = self.get_ancestor(Adw.BottomSheet)

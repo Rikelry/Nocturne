@@ -345,6 +345,15 @@ def toggle_fullscreen(window):
             open_popout_window(window, True)
             GLib.timeout_add(1000, window.get_application().lookup_action("toggle_fullscreen").set_enabled, True)
 
+def set_rating(window, data):
+    integration = get_current_integration()
+    if model := integration.loaded_models.get(data.get('model_id')):
+        if new_rating := data.get('rating'):
+            if new_rating == model.get_property('userRating'):
+                new_rating = 0
+            if integration.setRating(data.get('model_id'), new_rating):
+                model.set_property('userRating', new_rating)
+
 # -- PLAYER --
 
 def player_toggle(window):

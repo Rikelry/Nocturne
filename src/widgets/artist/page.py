@@ -159,10 +159,8 @@ class ArtistPage(Adw.NavigationPage):
     @Gtk.Template.Callback()
     def change_rating(self, button):
         integration = get_current_integration()
-        try:
-            rating = int(button.get_name())
-            if rating == integration.loaded_models.get(self.id).get_property('userRating'):
-                rating = 0
-        except:
-            return
-        integration.setRating(self.id, rating)
+        target_value = GLib.Variant('a{sv}', {
+            'model_id': GLib.Variant('s', self.id),
+            'rating': GLib.Variant('i', int(button.get_name()))
+        })
+        self.get_root().activate_action("app.set_rating", target_value)

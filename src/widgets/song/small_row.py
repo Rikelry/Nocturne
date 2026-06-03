@@ -65,6 +65,8 @@ class SongSmallRow(Gtk.Button):
         del context_dict["remove"]
         del context_dict["select"]
 
+        context_dict['rating']['value'] = integration.loaded_models.get(self.id).get_property('userRating')
+
         context_dict["play-next"]["sensitive"] = integration.loaded_models.get('currentSong').get_property('songId') != self.id
         context_dict["play-later"]["sensitive"] = integration.loaded_models.get('currentSong').get_property('songId') != self.id
 

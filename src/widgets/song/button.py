@@ -87,6 +87,8 @@ class SongButton(Gtk.Box):
         context_dict["play-next"]["sensitive"] = integration.loaded_models.get('currentSong').get_property('songId') != self.id
         context_dict["play-later"]["sensitive"] = integration.loaded_models.get('currentSong').get_property('songId') != self.id
 
+        context_dict['rating']['value'] = integration.loaded_models.get(self.id).get_property('userRating')
+
         if integration.__gtype_name__ == 'NocturneIntegrationOffline':
             context_dict["delete-download"]["sensitive"] = integration.loaded_models.get('currentSong').get_property('songId') != self.id
         else:

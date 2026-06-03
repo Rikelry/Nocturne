@@ -71,6 +71,8 @@ class SongRow(Adw.ActionRow):
         context_dict["play-next"]["sensitive"] = integration.loaded_models.get('currentSong').get_property('songId') != self.id
         context_dict["play-later"]["sensitive"] = integration.loaded_models.get('currentSong').get_property('songId') != self.id
 
+        context_dict['rating']['value'] = integration.loaded_models.get(self.id).get_property('userRating')
+
         if not model or not (model.get_property('radioStreamUrl') and not self.draggable):
             del context_dict["edit-radio"]
             del context_dict["delete-radio"]

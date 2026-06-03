@@ -231,6 +231,7 @@ class NocturneWindow(Adw.ApplicationWindow):
         self.create_action(actions.delete_navidrome_server, parameter_type=None)
         self.create_action(actions.open_popout_window, shortcuts=['<ctrl>P'], parameter_type=None)
         self.create_action(actions.toggle_fullscreen, shortcuts=['F11'], parameter_type=None)
+        self.create_action(actions.set_rating, parameter_type="a{sv}") # dict with string keys and any values
 
         self.create_action(actions.player_toggle, shortcuts=['<ctrl>K'], parameter_type=None)
         self.create_action(actions.player_play, parameter_type=None)
@@ -246,7 +247,7 @@ class NocturneWindow(Adw.ApplicationWindow):
         self.create_action(actions.delete_radio)
 
         self.create_action(actions.play_song)
-        self.create_action(actions.play_song_from_list, parameter_type="a{sv}") # dict with string keys and any values
+        self.create_action(actions.play_song_from_list, parameter_type="a{sv}")
         self.create_action(actions.play_song_next)
         self.create_action(actions.play_song_later)
         self.create_action(actions.play_songs, parameter_type="as")
