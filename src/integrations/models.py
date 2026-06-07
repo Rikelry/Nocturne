@@ -17,6 +17,7 @@ class Album(GObject.Object):
     song = GObject.Property(type=GObject.TYPE_PYOBJECT) #list
     starred = GObject.Property(type=bool, default=False)
     userRating = GObject.Property(type=int)
+    year = GObject.Property(type=int)
 
     def __init__(self, **kwargs):
         super().__init__()

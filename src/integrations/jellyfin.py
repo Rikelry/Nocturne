@@ -396,7 +396,8 @@ class Jellyfin(Base):
                         "ParentId": model_id,
                         "IncludeItemTypes": "MusicAlbum",
                         "Recursive": "true",
-                        "Fields": "ItemCounts"
+                        "Fields": "ItemCounts",
+                        "SortBy": "PremiereDate"
                     }
                 ).get("Items", [])
 
@@ -439,7 +440,7 @@ class Jellyfin(Base):
                         "ParentId": model_id,
                         "IncludeItemTypes": "Audio",
                         "Recursive": "true",
-                        "Fields": "RunTimeTicks,IndexNumber,ParentIndexNumber",
+                        "Fields": "RunTimeTicks,IndexNumber,ParentIndexNumber,ProductionYear",
                         "SortBy": "ParentIndexNumber,IndexNumber",
                         "SortOrder": "Ascending"
                     }
@@ -461,7 +462,8 @@ class Jellyfin(Base):
                     artists=[{"id": art.get("Id"), "name": art.get("Name")} for art in album.get("ArtistItems", [])],
                     song=[{"id": song.get("Id"), "name": song.get("Name")} for song in songs],
                     starred=album.get("UserData", {}).get("IsFavorite", False),
-                    userRating=self.get_rating(album.get("Id"))
+                    userRating=self.get_rating(album.get("Id")),
+                    year=album.get("ProductionYear", 0)
                 )
             elif model_id in self.loaded_models:
                 del self.loaded_models[model_id]

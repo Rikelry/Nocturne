@@ -71,7 +71,7 @@ template $NocturneAlbumButton: Gtk.Box {
     };
   }
 
-  Gtk.Button name_el {
+  Gtk.Button name_button_el {
     Gtk.GestureClick {
       button: 3;
       released => $show_popover_name();
@@ -80,7 +80,6 @@ template $NocturneAlbumButton: Gtk.Box {
       pressed => $show_popover_name();
     }
     styles [
-      "title-3",
       "flat",
       "p0"
     ]
@@ -88,9 +87,25 @@ template $NocturneAlbumButton: Gtk.Box {
       label: _("Enter album page");
     }
 
-    child: Gtk.Label {
-      ellipsize: end;
-      max-width-chars: 1;
+    child: Gtk.Box{
+      orientation: vertical;
+      spacing: 6;
+
+      Gtk.Label name_el {
+        styles [
+          "title-3"
+        ]
+        ellipsize: end;
+        max-width-chars: 1;
+      }
+      Gtk.Label year_el {
+        styles [
+          "dimmed"
+        ]
+        visible: false;
+        ellipsize: end;
+        max-width-chars: 1;
+      }
     };
 
     action-name: "app.show_album";
