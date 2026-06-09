@@ -34,6 +34,8 @@ class Jellyfin(Base):
         }
     }
 
+    ongoing_requests = set()
+
     AUTH_HEADER = 'MediaBrowser Client="Nocturne", Device="{}", DeviceId="{}", Version="1.0.0"'.format(platform.node(), str(abs(hash(platform.node()))))
 
     url = GObject.Property(type=str, default="http://127.0.0.1:8096")
@@ -466,8 +468,15 @@ class Jellyfin(Base):
                     ).start()
             elif model_id in self.loaded_models:
                 del self.loaded_models[model_id]
+            self.ongoing_requests.remove(model_id)
 
         if model_id not in self.loaded_models or force_update:
+            # Prevent repeated requests
+            if model_id in self.ongoing_requests:
+                print(f"Artist: {model_id} is ongoing")
+                return
+            self.ongoing_requests.add(model_id)
+
             if model_id not in self.loaded_models:
                 self.loaded_models[model_id] = models.Artist(id=model_id)
             if use_threading:
@@ -526,8 +535,15 @@ class Jellyfin(Base):
                     ).start()
             elif model_id in self.loaded_models:
                 del self.loaded_models[model_id]
+            self.ongoing_requests.remove(model_id)
 
         if model_id not in self.loaded_models or force_update:
+            # Prevent repeated requests
+            if model_id in self.ongoing_requests:
+                print(f"Album: {model_id} is ongoing")
+                return
+            self.ongoing_requests.add(model_id)
+
             if model_id not in self.loaded_models:
                 self.loaded_models[model_id] = models.Album(id=model_id)
             if use_threading:
@@ -574,8 +590,15 @@ class Jellyfin(Base):
                     ).start()
             elif model_id in self.loaded_models:
                 del self.loaded_models[model_id]
+            self.ongoing_requests.remove(model_id)
 
         if model_id not in self.loaded_models or force_update:
+            # Prevent repeated requests
+            if model_id in self.ongoing_requests:
+                print(f"Playlist: {model_id} is ongoing")
+                return
+            self.ongoing_requests.add(model_id)
+
             if model_id not in self.loaded_models:
                 self.loaded_models[model_id] = models.Playlist(id=model_id)
             if use_threading:
@@ -624,8 +647,15 @@ class Jellyfin(Base):
             elif model_id in self.loaded_models:
                 self.loaded_models.get(model_id).set_property('deleted', True)
                 del self.loaded_models[model_id]
+            self.ongoing_requests.remove(model_id)
 
         if model_id not in self.loaded_models or force_update:
+            # Prevent repeated requests
+            if model_id in self.ongoing_requests:
+                print(f"Song: {model_id} is ongoing")
+                return
+            self.ongoing_requests.add(model_id)
+
             if model_id not in self.loaded_models:
                 self.loaded_models[model_id] = models.Song(id=model_id)
             if use_threading:
