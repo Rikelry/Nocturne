@@ -41,13 +41,25 @@ class LyricRow(Gtk.ListBoxRow):
                 if duration_ms == 0:
                     self.cues[ms] = content
                 else:
+                    print('auto mode', duration_ms)
                     words = content.split(' ')
-                    ms_per_word = duration_ms / len(words)
+                    weights = []
+                    for word in words:
+                        word = word.replace('.', '...')
+                        word = word.replace(',', '...')
+                        weights.append(len(word))
+
+                    ms_per_letter = int(duration_ms / sum(weights))
+                    last_timestamp = 0
                     for i, word in enumerate(words):
-                        timestamp = ms + (i * ms_per_word)
+                        if i == 0:
+                            timestamp = ms
+                        else:
+                            timestamp = int(last_timestamp + weights[i-1] * ms_per_letter)
+                        last_timestamp = timestamp
                         self.cues[timestamp] = word + ' '
             else:
-                self.cues[ms] = "🎵"
+                self.cues[ms] = "🎵" if duration_ms > 1000 else ""
 
         self.sorted_ts = sorted(self.cues.keys())
         self.alphas = {ts: 0.3 for ts in self.sorted_ts}
