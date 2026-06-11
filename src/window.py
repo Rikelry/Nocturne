@@ -130,7 +130,7 @@ class NocturneWindow(Adw.ApplicationWindow):
     def update_loading_message(self, integration):
         message = integration.get_property("loadingMessage")
         self.loading_label_el.set_visible(message)
-        self.loading_label_el.set_tooltip_text(message)
+        self.loading_label_el.set_label(message)
         if not message:
             threading.Thread(target=self.main_navigationview.get_visible_page().reload, daemon=True).start()
 
