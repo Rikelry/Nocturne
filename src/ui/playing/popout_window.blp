@@ -49,28 +49,15 @@ template $NocturnePopoutWindow: Adw.ApplicationWindow {
         child: Adw.NavigationSplitView split_view {
           sidebar-width-fraction: 0.5;
           max-sidebar-width: 320;
-          collapsed: bind split_view_toggle.active inverted;
 
           sidebar: $NocturnePlayingControlPage playing_page {
-            extra-widget: Gtk.Box sidebar_extra_container {
-              orientation: horizontal;
-              spacing: 10;
+            extra-widget: Adw.Bin sidebar_extra_container {
               halign: center;
               visible: false;
-
-              Gtk.ToggleButton split_view_toggle {
-                styles [
-                  "flat"
-                ]
-                icon-name: "sidebar-show-right-symbolic";
-                tooltip-text: _("Show Sidebar");
-                active: bind split_view.collapsed inverted;
-                visible: false;
-              }
-
               Adw.ViewSwitcher {
                 stack: stack;
                 policy: wide;
+                visible: bind split_view.collapsed inverted;
               }
             };
           };
