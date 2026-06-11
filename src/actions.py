@@ -590,8 +590,8 @@ def play_songs_later(window, song_list:list):
             daemon=True
         ).start()
 
-def edit_lyrics(window, song_id:str):
-    Widgets.LyricsDialog(song_id).present(window.get_application().props.active_window)
+def edit_lyrics(window):
+    Widgets.LyricsDialog().present(window.get_application().props.active_window)
 
 def save_lyrics(window, lyric_dict:dict):
     # lyric_dict KEYS

@@ -89,7 +89,6 @@ class SongRow(Adw.ActionRow):
 
         if not model or model.get_property('radioStreamUrl') or model.get_property('isExternalFile'):
             del context_dict["add-to-playlist"]
-            del context_dict["edit-lyrics"]
             del context_dict["show-album"]
             del context_dict["show-artist"]
             if not self.draggable:

@@ -16,9 +16,10 @@ template $NocturnePlayingLyricsPage: Gtk.Stack {
       Gtk.Button {
         styles [
           "circular",
-          "accent",
-          "lyrics_go_back_overlay_button"
+          "accent"
         ]
+        margin-bottom: 10;
+        margin-end: 10;
         valign: end;
         halign: end;
         tooltip-text: _("Go Back");
@@ -54,12 +55,31 @@ template $NocturnePlayingLyricsPage: Gtk.Stack {
     name: "lrc";
     child: Gtk.Overlay {
       [overlay]
+      Gtk.MenuButton {
+        styles [
+          "circular",
+          "accent"
+        ]
+        margin-bottom: 10;
+        margin-end: 10;
+        valign: end;
+        halign: end;
+        tooltip-text: _("Lyrics Options");
+        icon-name: "view-more-symbolic";
+        popover: Gtk.Popover lrc_menu_popover {
+          child: Adw.Spinner {};
+        };
+      }
+
+      [overlay]
       Gtk.Button {
         styles [
           "circular",
-          "accent",
-          "lyrics_go_back_overlay_button"
+          "accent"
         ]
+        visible: false;
+        margin-bottom: 10;
+        margin-end: 10;
         valign: end;
         halign: end;
         tooltip-text: _("Go Back");

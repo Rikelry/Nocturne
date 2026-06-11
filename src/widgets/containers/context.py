@@ -77,7 +77,7 @@ def get_context_buttons_list(options:dict, model_id:str, cb_handler:callable=Non
 class ContextContainer(Gtk.Box):
     __gtype_name__ = 'NocturneContextContainer'
 
-    def __init__(self, options:dict, model_id:str):
+    def __init__(self, options:dict, model_id:str=None):
         #options:
         #name : {
         #   icon-name:str

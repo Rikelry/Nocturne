@@ -398,11 +398,6 @@ CONTEXT_SONG = {
         "icon-name": "document-edit-symbolic",
         "action-name": "app.update_radio"
     },
-    "edit-lyrics": {
-        "name": _("Edit Lyrics"),
-        "icon-name": "text-justify-center-symbolic",
-        "action-name": "app.edit_lyrics"
-    },
     "add-to-playlist": {
         "name": _("Add To Playlist"),
         "icon-name": "playlist-symbolic",
@@ -467,5 +462,18 @@ CONTEXT_MANAGED_NAVIDROME_SERVER = {
         "css": ["error"],
         "icon-name": "user-trash-symbolic",
         "action-name": "app.delete_navidrome_server"
+    }
+}
+
+CONTEXT_LYRICS = {
+    "edit": {
+        "name": _("Edit Lyrics"),
+        "icon-name": "document-edit-symbolic",
+        "action-name": "app.edit_lyrics"
+    },
+    "remove": {
+        "name": _("Remove Lyrics"),
+        "css": ["error"],
+        "icon-name": "user-trash-symbolic",
     }
 }

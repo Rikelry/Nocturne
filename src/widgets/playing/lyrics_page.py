@@ -3,7 +3,8 @@
 from gi.repository import Gtk, GObject, GLib, Gio, Pango, Gst
 from ...integrations import get_current_integration
 from ..lyrics.helpers import get_lyrics
-from ...constants import DATA_DIR
+from ...constants import DATA_DIR, CONTEXT_LYRICS
+from ..containers import ContextContainer
 import threading, os, re
 
 class LyricRow(Gtk.ListBoxRow):
@@ -95,8 +96,15 @@ class PlayingLyricsPage(Gtk.Stack):
     plain_label_el = Gtk.Template.Child()
     lrc_list_el = Gtk.Template.Child()
     scrolledwindow = Gtk.Template.Child()
+    lrc_menu_popover = Gtk.Template.Child()
     code_is_selecting = False # used so that `on_lrc_selection` is only executed when manually selecting
     last_best_match = None
+
+    def __init__(self):
+        super().__init__()
+        context = CONTEXT_LYRICS.copy()
+        context["remove"]["connection"] = self.go_to_main
+        self.lrc_menu_popover.set_child(ContextContainer(context))
 
     def setup(self):
         # Called after login
@@ -235,7 +243,7 @@ class PlayingLyricsPage(Gtk.Stack):
         ).open(self.get_root(), None, self.copy_lyrics_lrc)
 
     @Gtk.Template.Callback()
-    def go_to_main(self, button):
+    def go_to_main(self, button=None):
         self.set_visible_child_name('not-found-locally')
         if existing_path := self.get_lrc_path():
             if os.path.isfile(existing_path):

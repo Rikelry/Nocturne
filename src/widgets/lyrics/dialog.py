@@ -67,12 +67,11 @@ class LyricsDialog(Adw.Dialog):
     is_seeking = False
     focused_row = None
 
-    def __init__(self, id:str):
-        self.id = id
+    def __init__(self):
         integration = get_current_integration()
+        self.id = integration.loaded_models.get('currentSong').get_property('songId')
         super().__init__()
         self.lrc_list_el.set_sort_func(lambda r1, r2: r1.ms - r2.ms)
-        integration.loaded_models.get('currentSong').set_property('songId', self.id)
         integration.connect_to_model('currentSong', 'positionSeconds', self.position_changed)
         integration.connect_to_model('currentSong', 'buttonState', self.state_stack_el.set_visible_child_name)
         integration.connect_to_model(self.id, 'title', self.set_title)

@@ -205,11 +205,6 @@ window.fullscreen dialog headerbar {
   margin-bottom: 0;
 }
 
-window.popout-window.big-mode button.lyrics_go_back_overlay_button {
-  margin: 20px;
-  margin-bottom: 162px;
-}
-
 .p50 {
   padding:50px;
 }
@@ -219,10 +214,6 @@ window.popout-window.big-mode button.lyrics_go_back_overlay_button {
 	font-weight: 800;
 	letter-spacing: -0.02em;
 	line-height: 1.1;
-}
-
-button.lyrics_go_back_overlay_button {
-  margin: 10px;
 }
 
 @media (prefers-color-scheme: light) {
