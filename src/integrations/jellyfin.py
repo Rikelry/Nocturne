@@ -293,8 +293,9 @@ class Jellyfin(Base):
         ).get('Items', [])
         id_list = []
         for album in albums:
-            self.verifyAlbum(album.get("Id"), album_object=album) #TODO maybe code in a way to skip the song retrieval in verifyAlbum
-            id_list.append(album.get("Id"))
+            if album.get("Id"):
+                self.verifyAlbum(album.get("Id"), album_object=album)
+                id_list.append(album.get("Id"))
         return id_list
 
     def getArtists(self, size:int=10) -> list:
@@ -312,31 +313,9 @@ class Jellyfin(Base):
         )
         id_list = []
         for artist in response.get('Items', []):
-            albums = self.make_request(
-                action="Users/{userId}/Items",
-                mode="GET",
-                params={
-                    "ArtistIds": artist.get("Id"),
-                    "IncludeItemTypes": "MusicAlbum",
-                    "Recursive": "true"
-                }
-            ).get("Items", [])
-
-            artist_model = models.Artist(
-                id=artist.get('Id'),
-                name=artist.get('Name'),
-                coverArt=artist.get('ImageTags', {}).get('Primary', ''),
-                albumCount=len(albums),
-                album=[{'id': alb.get("Id"), 'name': alb.get("Name")} for alb in albums],
-                starred=artist.get("UserData", {}).get("IsFavorite", False),
-                biography=artist.get("Overview", ""),
-                similarArtist=[{'id': art.get("Id"), 'name': art.get("Name")} for art in artist.get("SimilarItems", [])],
-                userRating=self.get_rating(artist.get("Id"))
-            )
-            self.loaded_models[artist.get("Id")] = artist_model
-            id_list.append(artist.get("Id"))
-            if(artist.get('ImageTags', {}).get('Primary', '')):
-                threading.Thread(target=self.updateCoverArt, kwargs={"model_id": artist.get('Id')}, daemon=True).start()
+            if artist.get("Id"):
+                self.verifyArtist(artist.get("Id"), artist_object=artist)
+                id_list.append(artist.get("Id"))
         return id_list
 
     def getPlaylists(self) -> list:
@@ -352,30 +331,9 @@ class Jellyfin(Base):
         )
         id_list = []
         for playlist in response.get('Items', []):
-            songs = self.make_request(
-                action='Playlists/{id}/Items',
-                action_keys={"id": playlist.get("Id")},
-                mode="GET",
-                params={
-                    "Fields": "RunTimeTicks",
-                    "UserId": self.get_property("userId")
-                }
-            ).get("Items", [])
-
-            duration = int(sum(song.get("RunTimeTicks", 0) for song in songs) / 10000000)
-
-            playlist_model = models.Playlist(
-                id=playlist.get("Id"),
-                name=playlist.get("Name"),
-                coverArt=playlist.get('ImageTags', {}).get('Primary', ''),
-                songCount=len(songs),
-                duration=duration,
-                entry=[{"id": song.get("Id"), "name": song.get("Name")} for song in songs]
-            )
-            self.loaded_models[playlist.get("Id")] = playlist_model
-            id_list.append(playlist.get("Id"))
-            if(playlist.get('ImageTags', {}).get('Primary', '')):
-                threading.Thread(target=self.updateCoverArt, kwargs={"model_id": playlist.get("Id")}, daemon=True).start()
+            if playlist.get("Id"):
+                self.verifyPlaylist(playlist.get("Id"), playlist_object=playlist, lite=True)
+                id_list.append(playlist.get("Id"))
         return id_list
 
     def getStarredSongs(self) -> list:
@@ -443,10 +401,14 @@ class Jellyfin(Base):
                 del self.loaded_models[model_id]
             self.ongoing_requests.remove(model_id)
 
+        if not model_id or not model_id.strip():
+            logger.warning ("Empty Artist model_id, aborting.")
+            return
+
         if model_id not in self.loaded_models or force_update:
             # Prevent repeated requests
             if model_id in self.ongoing_requests and not force_update:
-                print(f"Artist: {model_id} is ongoing")
+                logger.debug(f"GET request for Artist: {model_id} is ongoing, aborting.")
                 return
             self.ongoing_requests.add(model_id)
 
@@ -509,10 +471,14 @@ class Jellyfin(Base):
                 del self.loaded_models[model_id]
             self.ongoing_requests.remove(model_id)
 
+        if not model_id or not model_id.strip():
+            logger.warning("Empty Album model_id, aborting.")
+            return
+
         if model_id not in self.loaded_models or force_update:
             # Prevent repeated requests
             if model_id in self.ongoing_requests and not force_update:
-                print(f"Album: {model_id} is ongoing")
+                logger.debug(f"GET request for Album: {model_id} is ongoing, aborting.")
                 return
             self.ongoing_requests.add(model_id)
 
@@ -525,7 +491,7 @@ class Jellyfin(Base):
 
         #threading.Thread(target=self.updateCoverArt, args=(model_id,), daemon=True).start()
 
-    def verifyPlaylist(self, model_id:str, playlist_object:models.Playlist=None, force_update:bool=False, use_threading:bool=True):
+    def verifyPlaylist(self, model_id:str, playlist_object:models.Playlist=None, lite:bool=False, force_update:bool=False, use_threading:bool=True):
         def run():
             playlist = playlist_object
             if playlist is None:
@@ -535,25 +501,33 @@ class Jellyfin(Base):
                     mode="GET"
                 )
 
+            params={
+                    "UserId": self.get_property("userId"),
+                    "Fields": "RunTimeTicks"
+                }
             if playlist.get("Id"):
-                songs = self.make_request(
-                    action='Users/{userId}/Items',
-                    mode="GET",
-                    params={
-                        "ParentId": model_id,
-                        "IncludeItemTypes": "Audio",
-                        "Recursive": "true",
-                        "Fields": "RunTimeTicks"
-                    }
-                ).get("Items", [])
+                params = {
+                    "UserId": self.get_property("userId"),
+                    "Fields": "RunTimeTicks"
+                }
+                if(lite):
+                    params["Limit"]=0,
 
+                songs_response = self.make_request(
+                    action='Playlists/{id}/Items',
+                    action_keys={"id": model_id},
+                    mode="GET",
+                    params=params
+                )#.get("Items", [])
+
+                songs = songs_response.get("Items", [])
                 duration = int(sum(song.get("RunTimeTicks", 0) for song in songs) / 10000000)
 
                 self.loaded_models.get(model_id).update_data(
                     id=playlist.get("Id"),
                     name=playlist.get("Name"),
                     coverArt=playlist.get('ImageTags', {}).get('Primary', ''),
-                    songCount=len(songs),
+                    songCount=songs_response.get("TotalRecordCount"),
                     duration=duration,
                     entry=[{"id": song.get("Id"), "name": song.get("Name")} for song in songs]
                 )
@@ -563,10 +537,14 @@ class Jellyfin(Base):
                 del self.loaded_models[model_id]
             self.ongoing_requests.remove(model_id)
 
+        if not model_id or not model_id.strip():
+            logger.warning("Empty Playlist model_id, aborting.")
+            return
+
         if model_id not in self.loaded_models or force_update:
             # Prevent repeated requests
             if model_id in self.ongoing_requests and not force_update:
-                print(f"Playlist: {model_id} is ongoing")
+                logger.debug(f"GET request for Playlist: {model_id} is ongoing, aborting.")
                 return
             self.ongoing_requests.add(model_id)
 
@@ -619,10 +597,14 @@ class Jellyfin(Base):
                 del self.loaded_models[model_id]
             self.ongoing_requests.remove(model_id)
 
+        if not model_id or not model_id.strip():
+            logger.warning ("Empty Song model_id, aborting.")
+            return
+
         if model_id not in self.loaded_models or force_update:
             # Prevent repeated requests
             if model_id in self.ongoing_requests and not force_update:
-                print(f"Song: {model_id} is ongoing")
+                logger.debug(f"GET request for Song: {model_id} is ongoing, aborting.")
                 return
             self.ongoing_requests.add(model_id)
 
@@ -714,24 +696,7 @@ class Jellyfin(Base):
         id_list = []
         for song in songs:
             if song.get("Id"):
-                duration = int(song.get("RunTimeTicks", 0) / 10000000)
-                properties = {
-                    "id": song.get("Id"),
-                    "title": song.get("Name"),
-                    "album": song.get("Album"),
-                    "albumId": song.get("AlbumId"),
-                    "artist": song.get("AlbumArtist"),
-                    "artistId": (song.get("ArtistItems") or [{}])[0].get("Id"),
-                    "coverArt": song.get('ImageTags', {}).get('Primary', ''),
-                    "duration": duration,
-                    "artists": [{"id": art.get("Id"), "name": art.get("Name")} for art in song.get("ArtistItems", [])],
-                    "starred": song.get("UserData", {}).get("IsFavorite", False),
-                    "userRating": self.get_rating(song.get("Id"))
-                }
-                if song.get("Id") in self.loaded_models:
-                    self.loaded_models.get(song.get("Id")).update_data(**properties)
-                else:
-                    self.loaded_models[song.get("Id")] = models.Song(**properties)
+                self.verifySong(song.get("Id"), song)
                 id_list.append(song.get("Id"))
         return id_list
 
@@ -752,27 +717,8 @@ class Jellyfin(Base):
         id_list = []
         for song in songs:
             if song.get("Id"):
-                duration = int(song.get("RunTimeTicks", 0) / 10000000)
-                properties = {
-                    "id": song.get("Id"),
-                    "title": song.get("Name"),
-                    "album": song.get("Album"),
-                    "albumId": song.get("AlbumId"),
-                    "artist": song.get("AlbumArtist"),
-                    "artistId": (song.get("ArtistItems") or [{}])[0].get("Id"),
-                    "coverArt": song.get('ImageTags', {}).get('Primary', ''),
-                    "duration": duration,
-                    "artists": [{"id": art.get("Id"), "name": art.get("Name")} for art in song.get("ArtistItems", [])],
-                    "starred": song.get("UserData", {}).get("IsFavorite", False),
-                    "userRating": self.get_rating(song.get("Id"))
-                }
-                if song.get("Id") in self.loaded_models:
-                    self.loaded_models.get(song.get("Id")).update_data(**properties)
-                else:
-                    self.loaded_models[song.get("Id")] = models.Song(**properties)
-                if(song.get('ImageTags', {}).get('Primary', '')):
-                    threading.Thread(target=self.updateCoverArt, args=(song.get("Id"),), daemon=True).start()
-            id_list.append(song.get("Id"))
+                self.verifySong(song.get("Id"), song_object=song)
+                id_list.append(song.get("Id"))
         return id_list
 
     def getLyrics(self, songId:str) -> dict:
