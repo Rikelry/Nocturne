@@ -13,6 +13,7 @@ class PlayingControlPage(Adw.NavigationPage):
     extra_widget = GObject.Property(type=Gtk.Widget)
 
     header_bar = Gtk.Template.Child()
+    clamp = Gtk.Template.Child()
     main_container = Gtk.Template.Child()
     cover_art_el = Gtk.Template.Child()
     title_el = Gtk.Template.Child()

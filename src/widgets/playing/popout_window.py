@@ -62,6 +62,11 @@ class PopoutWindow(Adw.ApplicationWindow):
         self.dynamic_bg_mode_changed(self.settings, 'popout-dynamic-bg-mode')
         self.settings.connect('changed::use-dynamic-accent', self.css_toggled, 'dynamic-accent')
         self.css_toggled(self.settings, 'use-dynamic-accent', 'dynamic-accent')
+        self.playing_page.cover_art_el.view_stack_el.connect('notify::visible-child-name', self.cover_art_mode_toggled)
+
+    def cover_art_mode_toggled(self, view_stack, gparam):
+        mode = view_stack.get_visible_child_name()
+        self.playing_page.clamp.set_maximum_size(1920 if mode == 'video' else 720)
 
     def css_toggled(self, settings, key, css_class):
         if settings.get_value(key).unpack():
