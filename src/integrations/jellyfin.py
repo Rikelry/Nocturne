@@ -366,7 +366,7 @@ class Jellyfin(Base):
                     action='Users/{userId}/Items',
                     mode="GET",
                     params={
-                        "ParentId": model_id,
+                        "AlbumArtistIds": [model_id],
                         "IncludeItemTypes": "MusicAlbum",
                         "Recursive": "true",
                         "Fields": "ItemCounts",
@@ -750,18 +750,33 @@ class Jellyfin(Base):
 
     def __fetch_type(self, item_type:str, query:str, limit:int=5, offset:int=0, fields:str=""):
         # Method exclusive to Jellyfin, helper for searches
-        items = self.make_request(
-            action='Users/{userId}/Items',
-            mode="GET",
-            params={
-                "SearchTerm": query,
-                "IncludeItemTypes": item_type,
-                "Recursive": "true",
-                "Limit": limit,
-                "StartIndex": offset,
-                "Fields": fields
-            }
-        ).get('Items', [])
+        items = []
+        if item_type == "MusicArtist":
+            items = self.make_request(
+                action='Artists/AlbumArtists',
+                mode="GET",
+                params={
+                    "userId": self.get_property("userId"),
+                    "SearchTerm": query,
+                    "Recursive": "true",
+                    "Limit": limit,
+                    "StartIndex": offset,
+                    "Fields": fields
+                }
+            ).get('Items', [])
+        else:
+            items = self.make_request(
+                action='Users/{userId}/Items',
+                mode="GET",
+                params={
+                    "SearchTerm": query,
+                    "IncludeItemTypes": item_type,
+                    "Recursive": "true",
+                    "Limit": limit,
+                    "StartIndex": offset,
+                    "Fields": fields
+                }
+            ).get('Items', [])
 
         for item in items:
             if item_type == "MusicArtist":
@@ -1090,9 +1105,3 @@ class Jellyfin(Base):
             logger.error(f"can't get server information: {e}")
 
         return server_information
-
-
-
-
-
-
