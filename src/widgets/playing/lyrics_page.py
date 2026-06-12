@@ -45,8 +45,9 @@ class LyricRow(Gtk.ListBoxRow):
                     words = content.split(' ')
                     weights = []
                     for word in words:
-                        word = word.replace('.', '...')
-                        word = word.replace(',', '...')
+                        word = word.replace('.', '...') # Add more time
+                        word = word.replace(',', '..') # Add more time
+                        word = ''.join(c for c in word if c not in '¡!¿?\'"') # Ignore characters
                         weights.append(len(word))
 
                     ms_per_letter = int(duration_ms / sum(weights))
