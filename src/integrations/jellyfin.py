@@ -43,6 +43,7 @@ class Jellyfin(Base):
     # Loaded by API
     accessToken = GObject.Property(type=str)
     userId = GObject.Property(type=str)
+    libraryId = GObject.Property(type=str)
 
     def get_base_header(self) -> dict:
         headers = {
@@ -258,6 +259,14 @@ class Jellyfin(Base):
             self.set_property('accessToken', response.get('AccessToken'))
             self.set_property('userId', response.get('User', {}).get('Id'))
         if self.get_property('accessToken') and self.get_property('userId'):
+            libraries = self.make_request(
+                action='Users/{userId}/Views',
+                mode='GET'
+            ).get("Items", [])
+            for library in libraries:
+                if library.get("CollectionType") == "music":
+                    self.set_property('libraryId', library.get("Id"))
+                    break
             return super().ping()
         return {
             'status': 'error',
@@ -271,6 +280,7 @@ class Jellyfin(Base):
             "Limit": size,
             "StartIndex": offset,
             "Fields": "ArtistItems,IsFavorite",
+            "ParentId": self.get_property("libraryId")
         }
         if list_type == "random":
             params["SortBy"] = "Random"
@@ -299,17 +309,17 @@ class Jellyfin(Base):
         return id_list
 
     def getArtists(self, size:int=10) -> list:
-        params = {
-            "Limit": size,
-            "Recursive": "true",
-            "Fields": "Overview,SimilarItems,UserData",
-            "SortBy": "Random",
-            "SortOrder": "Ascending"
-        }
         response = self.make_request(
-            action='Artists',
+            action='Artists/AlbumArtists',
             mode='GET',
-            params=params
+            params={
+                "Limit": size,
+                "Recursive": "true",
+                "Fields": "Overview,SimilarItems,UserData",
+                "SortBy": "Random",
+                "SortOrder": "Ascending",
+                "ParentId": self.get_property("libraryId")
+            }
         )
         id_list = []
         for artist in response.get('Items', []):
@@ -319,15 +329,15 @@ class Jellyfin(Base):
         return id_list
 
     def getPlaylists(self) -> list:
-        params = {
-            "IncludeItemTypes": "Playlist",
-            "Recursive": "true",
-            "Fields": "None"
-        }
         response = self.make_request(
             action='Users/{userId}/Items',
             mode='GET',
-            params=params
+            params={
+                "IncludeItemTypes": "Playlist",
+                "Recursive": "true",
+                "Fields": "None",
+                "ParentId": self.get_property("libraryId")
+            }
         )
         id_list = []
         for playlist in response.get('Items', []):
@@ -345,7 +355,8 @@ class Jellyfin(Base):
                 "IncludeItemTypes": "Audio",
                 "Recursive": "true",
                 "Fields": "Id",
-                "Filters": "IsFavorite"
+                "Filters": "IsFavorite",
+                "ParentId": self.get_property("libraryId")
             }
         ).get("Items", [])
 
@@ -362,17 +373,21 @@ class Jellyfin(Base):
                 )
 
             if artist.get("Id"):
-                albums = self.make_request(
+                params={
+                    "AlbumArtistIds": [model_id],
+                    "IncludeItemTypes": "MusicAlbum",
+                    "Recursive": "true",
+                    "Fields": "ItemCounts",
+                    "SortBy": "PremiereDate"
+                }
+                if lite:
+                    params["Limit"]=0
+                albums_request = self.make_request(
                     action='Users/{userId}/Items',
                     mode="GET",
-                    params={
-                        "AlbumArtistIds": [model_id],
-                        "IncludeItemTypes": "MusicAlbum",
-                        "Recursive": "true",
-                        "Fields": "ItemCounts",
-                        "SortBy": "PremiereDate"
-                    }
-                ).get("Items", [])
+                    params=params
+                )
+                albums = albums_request.get("Items", [])
 
                 similar = []
                 if not lite: #Reduce request size
@@ -387,7 +402,7 @@ class Jellyfin(Base):
                     id=artist.get("Id"),
                     name=artist.get("Name"),
                     coverArt=artist.get('ImageTags', {}).get('Primary', ''),
-                    albumCount=len(albums),
+                    albumCount=albums_request.get("TotalRecordCount"),
                     album=[{"id": alb.get("Id"), "name": alb.get("Name")} for alb in albums],
                     starred=artist.get("UserData", {}).get("IsFavorite", False),
                     biography=artist.get("Overview", ""),
@@ -710,7 +725,8 @@ class Jellyfin(Base):
                 "Fields": "RunTimeTicks,UserData,ArtistItems",
                 "Limit": size,
                 "SortBy": "Random",
-                "MediaTypes": "Audio"
+                "MediaTypes": "Audio",
+                "ParentId":self.get_property("libraryId")
             }
         ).get('Items', [])
 
@@ -757,6 +773,7 @@ class Jellyfin(Base):
                 mode="GET",
                 params={
                     "userId": self.get_property("userId"),
+                    "parentId": self.get_property("libraryId"),
                     "SearchTerm": query,
                     "Recursive": "true",
                     "Limit": limit,
@@ -774,7 +791,8 @@ class Jellyfin(Base):
                     "Recursive": "true",
                     "Limit": limit,
                     "StartIndex": offset,
-                    "Fields": fields
+                    "Fields": fields,
+                    "ParentId": self.get_property("libraryId")
                 }
             ).get('Items', [])
 
@@ -1012,7 +1030,8 @@ class Jellyfin(Base):
                 'SortBy': 'PlayCount',
                 'SortOrder': 'Descending',
                 'Limit': count,
-                'Recursive': 'true'
+                'Recursive': 'true',
+                'ParentId': self.get_property("libraryId")
             }
         ).get('Items', [])
         return [song.get('Id') for song in songs if song.get('Id')]
