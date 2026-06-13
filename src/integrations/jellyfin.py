@@ -106,8 +106,6 @@ class Jellyfin(Base):
         request_id = '({}) {}?{}'.format(mode, action_url, urlencode(params))
         return self.cache_manager.get_result(request_id, request_job, action_url)
 
-    # ----------- #
-
     def get_rating(self, model_id) -> int:
         conn, cursor = sql_instance.get_connection(self)
         cursor.execute("SELECT rating FROM ratings WHERE id = ?", (model_id,))
@@ -304,7 +302,7 @@ class Jellyfin(Base):
         id_list = []
         for album in albums:
             if album.get("Id"):
-                self.verifyAlbum(album.get("Id"), album_object=album)
+                self.verifyAlbum(album.get("Id"), album_object=album, lite=True)
                 id_list.append(album.get("Id"))
         return id_list
 
@@ -335,8 +333,7 @@ class Jellyfin(Base):
             params={
                 "IncludeItemTypes": "Playlist",
                 "Recursive": "true",
-                "Fields": "None",
-                "ParentId": self.get_property("libraryId")
+                "Fields": "None"
             }
         )
         id_list = []
@@ -436,7 +433,7 @@ class Jellyfin(Base):
 
         #threading.Thread(target=self.updateCoverArt, args=(model_id,), daemon=True).start()
 
-    def verifyAlbum(self, model_id:str, album_object:models.Album=None, force_update:bool=False, use_threading:bool=True):
+    def verifyAlbum(self, model_id:str, album_object:models.Album=None, force_update:bool=False, lite:bool=False, use_threading:bool=True):
         def run():
             album = album_object
             if album is None:
@@ -447,18 +444,20 @@ class Jellyfin(Base):
                 )
 
             if album.get("Id"):
-                songs = self.make_request(
-                    action='Users/{userId}/Items',
-                    mode="GET",
-                    params={
-                        "ParentId": model_id,
-                        "IncludeItemTypes": "Audio",
-                        "Recursive": "true",
-                        "Fields": "RunTimeTicks,IndexNumber,ParentIndexNumber,ProductionYear",
-                        "SortBy": "ParentIndexNumber,IndexNumber",
-                        "SortOrder": "Ascending"
-                    }
-                ).get("Items", [])
+                songs=[]
+                if not lite:
+                    songs = self.make_request(
+                        action='Users/{userId}/Items',
+                        mode="GET",
+                        params={
+                            "ParentId": model_id,
+                            "IncludeItemTypes": "Audio",
+                            "Recursive": "true",
+                            "Fields": "RunTimeTicks,IndexNumber,ParentIndexNumber,ProductionYear",
+                            "SortBy": "ParentIndexNumber,IndexNumber",
+                            "SortOrder": "Ascending"
+                        }
+                    ).get("Items", [])
 
                 duration = int(sum(song.get("RunTimeTicks", 0) for song in songs) / 10000000)
 
@@ -515,11 +514,6 @@ class Jellyfin(Base):
                     action_keys={"id": model_id},
                     mode="GET"
                 )
-
-            params={
-                    "UserId": self.get_property("userId"),
-                    "Fields": "RunTimeTicks"
-                }
             if playlist.get("Id"):
                 params = {
                     "UserId": self.get_property("userId"),
@@ -782,18 +776,20 @@ class Jellyfin(Base):
                 }
             ).get('Items', [])
         else:
+            params = {
+                "SearchTerm": query,
+                "IncludeItemTypes": item_type,
+                "Recursive": "true",
+                "Limit": limit,
+                "StartIndex": offset,
+                "Fields": fields
+            }
+            if item_type != "Playlist":
+                params["ParentId"] = self.get_property("libraryId")
             items = self.make_request(
                 action='Users/{userId}/Items',
                 mode="GET",
-                params={
-                    "SearchTerm": query,
-                    "IncludeItemTypes": item_type,
-                    "Recursive": "true",
-                    "Limit": limit,
-                    "StartIndex": offset,
-                    "Fields": fields,
-                    "ParentId": self.get_property("libraryId")
-                }
+                params=params
             ).get('Items', [])
 
         for item in items:
