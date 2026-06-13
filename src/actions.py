@@ -362,16 +362,18 @@ def player_toggle(window):
     if success:
         if state == Gst.State.PLAYING:
             # Pause the song
-            player.gst.set_state(Gst.State.PAUSED)
+            threading.Thread(target=player.gst.set_state, args=(Gst.State.PAUSED,), daemon=True).start()
         else:
             # Play the song
-            player.gst.set_state(Gst.State.PLAYING)
+            threading.Thread(target=player.gst.set_state, args=(Gst.State.PLAYING,), daemon=True).start()
 
 def player_play(window):
-    window.get_application().player.gst.set_state(Gst.State.PLAYING)
+    player = window.get_application().player
+    threading.Thread(target=player.gst.set_state, args=(Gst.State.PLAYING,), daemon=True).start()
 
 def player_pause(window):
-    window.get_application().player.gst.set_state(Gst.State.PAUSED)
+    player = window.get_application().player
+    threading.Thread(target=player.gst.set_state, args=(Gst.State.PAUSED,), daemon=True).start()
 
 def player_next(window):
     window.get_application().player.handle_song_change_request("next")

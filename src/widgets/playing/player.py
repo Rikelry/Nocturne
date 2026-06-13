@@ -288,7 +288,11 @@ class Player(EventAdapter):
 
         self.bus = self.gst.get_bus()
         self.bus.add_signal_watch()
-        self.bus.connect("message", self.on_message)
+
+        def call_message(*_):
+            threading.Thread(target=self.on_message, args=(_), daemon=True).start()
+
+        self.bus.connect("message", call_message)
 
         self.adapter = PlayerAdapter(self)
         self.mpris = Server("com.jeffser.Nocturne", adapter=self.adapter)
@@ -467,12 +471,10 @@ class Player(EventAdapter):
             struct = message.get_structure()
             if struct and struct.get_name() == "spectrum" and self.settings.get_value('show-visualizer').unpack():
                 threading.Thread(target=self.handle_spectrum_message, args=(struct,), daemon=True).start()
-        else:
+        elif message.src == self.gst:
             if message.type == Gst.MessageType.STATE_CHANGED:
                 old_state, new_state, pending_state = message.parse_state_changed()
-                if new_state != self.last_gst_state_type:
-                    self.handle_new_state(new_state)
-                    self.last_gst_state_type = new_state
+                self.handle_new_state(new_state)
             elif message.type == Gst.MessageType.TAG:
                 integration = get_current_integration()
                 if model := integration.loaded_models.get('currentSong'):
@@ -622,9 +624,8 @@ class Player(EventAdapter):
                         if success:
                             model.set_property('duration', duration / Gst.SECOND)
 
-        if song_id:
-            if song_id != self.song_connections.get('songId'):
-                stream_url = integration.get_stream_url(song_id)
+        def update_uri(songId):
+            if stream_url := integration.get_stream_url(songId):
                 self.gst.set_state(Gst.State.READY)
                 self.gst.set_property('uri', stream_url)
                 if self.pause_next_change:
@@ -632,13 +633,19 @@ class Player(EventAdapter):
                     self.pause_next_change = False
                 else:
                     self.gst.set_state(Gst.State.PLAYING)
-                if self.gst.get_property('volume') == 0 and song_id:
+            else:
+                self.gst.set_state(Gst.State.NULL)
+
+        if song_id:
+            if song_id != self.song_connections.get('songId'):
+                if self.gst.get_property('volume') == 0:
                     if active_window := self.application.props.active_window:
                         active_window.toast_overlay.add_toast(Adw.Toast(
                             title=_("Warning: Song changed but volume is set to 0")
                         ))
                 threading.Thread(target=integration.scrobble, args=(song_id,), kwargs={'submission': False}, daemon=True).start()
                 threading.Thread(target=update_default_metadata, args=(song_id,), daemon=True).start()
+                threading.Thread(target=update_uri, args=(song_id,), daemon=True).start()
         else:
             self.gst.set_state(Gst.State.NULL)
 
