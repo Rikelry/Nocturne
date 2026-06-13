@@ -48,7 +48,10 @@ template $NocturneWindow: Adw.ApplicationWindow {
             styles [
               "p10"
             ]
-            Adw.Spinner {}
+            Adw.Spinner {
+              width-request: 240;
+              height-request: 240;
+            }
             Gtk.Label loading_label_el {
               wrap: true;
               wrap-mode: word_char;
