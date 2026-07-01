@@ -45,18 +45,6 @@ class NocturneService:
                 <arg type="a{sa{sv}}" name="result" direction="out"/>
                 <arg type="s" name="query" direction="in"/>
             </method>
-            <method name="ShowArtist">
-                <arg type="s" name="artist" direction="in"/>
-            </method>
-            <method name="PlayAlbum">
-                <arg type="s" name="album" direction="in"/>
-            </method>
-             <method name="PlaySong">
-                <arg type="s" name="song" direction="in"/>
-            </method>
-             <method name="PlayPlaylist">
-                <arg type="s" name="playlist" direction="in"/>
-            </method>
         </interface>
     </node>
     """
@@ -69,23 +57,6 @@ class NocturneService:
             results = integration.systemSearch(query)
             return results
         return {}
-
-    def ShowArtist(self, artist:str):
-        if target_value := GLib.Variant('s', artist):
-            self.app.main_window.activate_action("app.show_artist", target_value)
-
-    def PlayAlbum(self, album:str):
-        if target_value := GLib.Variant('s', album):
-            self.app.main_window.activate_action("app.play_album", target_value)
-
-    def PlaySong(self, song:str):
-        if target_value := GLib.Variant('s', song):
-            self.app.main_window.activate_action("app.play_song", target_value)
-
-    def PlayPlaylist(self, playlist:str):
-        if target_value := GLib.Variant('s', playlist):
-            self.app.main_window.activate_action("app.play_playlist", target_value)
-
 
 class NocturneApplication(Adw.Application):
     __gtype_name__ = 'NocturneApplication'

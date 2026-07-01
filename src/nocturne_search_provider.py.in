@@ -63,15 +63,15 @@ class NocturneSearchProvider:
         if item := self.last_results.get(identifier):
             try:
                 bus = SessionBus()
-                if app_service := bus.get("com.jeffser.Nocturne.Service"):
-                    if item.get('type') == 'artist':
-                        app_service.ShowArtist(identifier)
-                    elif item.get('type') == 'album':
-                        app_service.PlayAlbum(identifier)
-                    elif item.get('type') == 'song':
-                        app_service.PlaySong(identifier)
-                    elif item.get('type') == 'playlist':
-                        app_service.PlayPlaylist(identifier)
+                if app_service := bus.get("com.jeffser.Nocturne"):
+                    actions = {
+                        'artist': 'show_artist',
+                        'album': 'play_album',
+                        'song': 'play_song',
+                        'playlist': 'play_playlist'
+                    }
+                    if action := actions.get(item.get('type')):
+                        app_service["org.gtk.Actions"].Activate(action, [GLib.Variant('s', identifier)], {})
             except Exception as e:
                 print(e)
 

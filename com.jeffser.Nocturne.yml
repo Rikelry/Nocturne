@@ -2,7 +2,7 @@ id: com.jeffser.Nocturne
 runtime: org.gnome.Platform
 runtime-version: '50'
 sdk: org.gnome.Sdk
-command: nocturne
+command: nocturne_search_provider
 finish-args:
   - '--share=network'
   - '--share=ipc'
