@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=com.jeffser.Nocturne.SearchProvider
+Exec=@bindir@/nocturne_search_provider

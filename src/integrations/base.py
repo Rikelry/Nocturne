@@ -123,6 +123,11 @@ class Base(GObject.Object):
         os.makedirs(directory, exist_ok=True)
         return directory
 
+    def getCoverArtBytes(self, model_id:str, size:int) -> bytes:
+        # Used to send bytes to different parts of the codebase instead of full paintables, also called by getCoverArt
+        print('WARNING', 'getCoverArtBytes', 'not implemented')
+        return b''
+
     def getCoverArt(self, model_id:str='', big:bool=False) -> Gdk.Paintable:
         # should set gdkPaintable to Model
         # should return Gdk.Paintable (texture)
@@ -224,6 +229,14 @@ class Base(GObject.Object):
         # for an example view local.py
         print('WARNING', 'search', 'not implemented')
         return {'artist': [], 'album': [], 'song': [], 'playlist': []}
+
+    def systemSearch(self, query:str):
+        # similar to 'search' but it will always just return the top 5 results for each category
+        # and instead of separating categories it is a dict of other dicts like this
+        # {'ID': {'display': VARIANT, 'type': VARIANT, 'icon': VARIANT}}
+        # The values for display, type and icon should be GVariants, see Jellyfin for example
+        print('WARNING', 'systemSearch', 'not implemented')
+        return {}
 
     def getInternetRadioStations(self) -> list:
         # returns a list of Song IDs with the property radioStreamUrl set

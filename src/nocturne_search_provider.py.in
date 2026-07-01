@@ -1,0 +1,105 @@
+#!/usr/bin/python3
+
+import gettext
+import uuid
+from pydbus import SessionBus
+from gi.repository import GLib, Gio
+
+_ = gettext.gettext
+
+ACTION_STRINGS = {
+    'artist': _("Show Artist"),
+    'album': _("Play Album"),
+    'song': _("Play Song"),
+    'playlist': _("Play Playlist")
+}
+
+class NocturneSearchProvider:
+    """
+    <node>
+        <interface name='org.gnome.Shell.SearchProvider2'>
+            <method name='GetInitialResultSet'>
+                <arg type='as' name='terms' direction='in'/>
+                <arg type='as' name='results' direction='out'/>
+            </method>
+            <method name='GetSubsearchResultSet'>
+                <arg type='as' name='previousResults' direction='in'/>
+                <arg type='as' name='terms' direction='in'/>
+                <arg type='as' name='results' direction='out'/>
+            </method>
+            <method name='ActivateResult'>
+                <arg type='s' name='identifier' direction='in'/>
+                <arg type='as' name='terms' direction='in'/>
+                <arg type='u' name='uid' direction='in'/>
+            </method>
+            <method name='GetResultMetas'>
+                <arg type='as' name='identifiers' direction='in'/>
+                <arg type='aa{sv}' name='metas' direction='out'/>
+            </method>
+        </interface>
+    </node>
+    """
+
+    last_results = {}
+
+    def GetInitialResultSet(self, terms):
+        return []
+
+    def ActivateResult(self, identifier, terms, uid=None):
+        if item := self.last_results.get(identifier):
+            try:
+                bus = SessionBus()
+                if app_service := bus.get("com.jeffser.Nocturne.Service"):
+                    if item.get('type') == 'artist':
+                        app_service.ShowArtist(identifier)
+                    elif item.get('type') == 'album':
+                        app_service.PlayAlbum(identifier)
+                    elif item.get('type') == 'song':
+                        app_service.PlaySong(identifier)
+                    elif item.get('type') == 'playlist':
+                        app_service.PlayPlaylist(identifier)
+            except Exception as e:
+                print(e)
+
+    def GetSubsearchResultSet(self, previousResults, terms):
+        query = ' '.join(terms)
+        self.last_results = {}
+        try:
+            bus = SessionBus()
+            if app_service := bus.get("com.jeffser.Nocturne.Service"):
+                self.last_results = app_service.Search(query)
+        except Exception as e:
+            print(e)
+
+        return list(self.last_results)
+
+    def GetResultMetas(self, identifiers):
+        results = []
+        for identifier in identifiers:
+            if item := self.last_results.get(identifier):
+                if display := item.get('display'):
+                    icon = None
+                    try:
+                        if icon_bytes := item.get('icon'):
+                            if len(icon_bytes) > 0:
+                                gbytes = GLib.Bytes.new(icon_bytes)
+                                icon = Gio.BytesIcon.new(gbytes).serialize()
+                    except:
+                        pass
+
+                    if not icon:
+                        icon_name = 'avatar-default-symbolic' if item.get('type') == 'artist' else 'media-playback-start-symbolic'
+                        icon = Gio.ThemedIcon.new(icon_name).serialize()
+
+                    results.append({
+                        'id': GLib.Variant('s', identifier),
+                        'name': GLib.Variant('s', display),
+                        'description': GLib.Variant('s', ACTION_STRINGS.get(item.get('type'), _("Open"))),
+                        'icon': icon
+                    })
+        return results
+
+bus = SessionBus()
+bus.publish("com.jeffser.Nocturne.SearchProvider", NocturneSearchProvider())
+loop = GLib.MainLoop()
+loop.run()

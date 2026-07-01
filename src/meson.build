@@ -99,6 +99,15 @@ configure_file(
   install_mode: 'rwxr-xr-x'
 )
 
+configure_file(
+  input: 'nocturne_search_provider.py.in',
+  output: 'nocturne_search_provider',
+  configuration: conf,
+  install: true,
+  install_dir: get_option('bindir'),
+  install_mode: 'r-xr-xr-x'
+)
+
 nocturne_sources = [
   '__init__.py',
   'main.py',

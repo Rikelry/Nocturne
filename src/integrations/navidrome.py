@@ -86,6 +86,26 @@ class Navidrome(Base):
         query_string = "&".join([f"{k}={v}" for k, v in params.items()])
         return '{}/rest/stream?{}'.format(self.get_property('url').strip('/'), query_string)
 
+    def getCoverArtBytes(self, model_id:str, size:int) -> bytes:
+        try:
+            cover_id = model_id
+            if model := self.loaded_models.get(model_id):
+                cover_id = model.get_property('coverArt') or model_id
+            response = self.session.get(
+                self.get_url('getCoverArt'),
+                params={
+                    **self.get_base_params(),
+                    'id': cover_id,
+                    'size': size
+                },
+                verify=not self.get_property('trustServer')
+            )
+            response.raise_for_status()
+            return response.content
+        except Exception as e:
+            logger.error(f"can't get image from {model_id}: {e}")
+        return b''
+
     def getCoverArt(self, model_id:str='', big:bool=False) -> Gdk.Paintable:
         if not model_id:
             return None
@@ -95,19 +115,7 @@ class Navidrome(Base):
             if not big and model.get_property('gdkPaintable'):
                 return model.get_property('gdkPaintable')
 
-            params = {
-                **self.get_base_params(),
-                'id': model.get_property('coverArt') or model.get_property('id'),
-                'size': 720 if big else 240
-            }
-            response = self.session.get(
-                self.get_url('getCoverArt'),
-                params=params,
-                verify=not self.get_property('trustServer')
-            )
-            response_bytes = response.content if response.status_code == 200 else b''
-
-            if response_bytes and len(response_bytes) > 0:
+            if response_bytes := self.getCoverArtBytes(model_id, 720 if big else 240):
                 try:
                     gbytes = GLib.Bytes.new(response_bytes)
                     texture = Gdk.Texture.new_from_bytes(gbytes)
@@ -415,6 +423,70 @@ class Navidrome(Base):
             'song': [m.get('id') for m in search_results.get('song', [])],
             'playlist': playlist_ids
         }
+
+    def systemSearch(self, query:str) -> dict:
+        results = {}
+        response = self.make_request('search3', {
+            'query': query,
+            'artistCount': 5,
+            'albumCount': 5,
+            'songCount': 5,
+        }).get('searchResult3', {})
+
+        # Artists
+        for artist in response.get('artist', []):
+            icon_bytes = self.getCoverArtBytes(artist.get('id'), 128)
+            results[artist.get('id')] = {
+                'display': GLib.Variant('s', artist.get('name')),
+                'type': GLib.Variant('s', 'artist'),
+                'icon': GLib.Variant('ay', bytearray(icon_bytes))
+            }
+
+        # Albums
+        for album in response.get('album', []):
+            display_name = album.get('name')
+            try:
+                if artists := album.get('artists'):
+                    if len(artists) > 0:
+                        if artist := artists[0].get('name'):
+                            display_name = '{} • {}'.format(album.get('name'), artist)
+            except:
+                display_name = album.get('name')
+            icon_bytes = self.getCoverArtBytes(album.get('id'), 128)
+            results[album.get('id')] = {
+                'display': GLib.Variant('s', display_name),
+                'type': GLib.Variant('s', 'album'),
+                'icon': GLib.Variant('ay', bytearray(icon_bytes))
+            }
+
+        # Songs
+        for song in response.get('song', []):
+            display_name = song.get('title')
+            try:
+                if artists := song.get('artists'):
+                    if len(artists) > 0:
+                        if artist := artists[0].get('name'):
+                            display_name = '{} • {}'.format(song.get('title'), artist)
+            except:
+                display_name = song.get('title')
+            icon_bytes = self.getCoverArtBytes(song.get('id'), 128)
+            results[song.get('id')] = {
+                'display': GLib.Variant('s', display_name),
+                'type': GLib.Variant('s', 'song'),
+                'icon': GLib.Variant('ay', bytearray(icon_bytes))
+            }
+
+        # Playlists
+        for playlistId in self.getPlaylists():
+            if playlist := self.loaded_models.get(playlistId):
+                if re.search(query, playlist.get_property('name'), re.IGNORECASE):
+                    icon_bytes = self.getCoverArtBytes(playlistId, 128)
+                    results[playlistId] = {
+                        'display': GLib.Variant('s', playlist.get_property('name')),
+                        'type': GLib.Variant('s', 'playlist'),
+                        'icon': GLib.Variant('ay', bytearray(icon_bytes))
+                    }
+        return results
 
     def getInternetRadioStations(self) -> list:
         response = self.make_request('getInternetRadioStations')

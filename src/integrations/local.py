@@ -134,38 +134,46 @@ class Local(Base):
             return radioStreamUrl
         return 'file://{}'.format(model.get_property('path'))
 
+    def getCoverArtBytes(self, model_id:str, size:int) -> bytes:
+        try:
+            coverArtPath = None
+            if model := self.loaded_models.get(model_id):
+                coverArtPath = model.get_property('coverArt')
+            if not coverArtPath:
+                return b''
+
+            tag = TinyTag.get(coverArtPath, image=True)
+            if tag is None:
+                return b''
+
+            image_data = tag.get_image()
+            if not image_data:
+                return b''
+
+            img = Image.open(io.BytesIO(image_data))
+            w_percent = (size / float(img.size[0]))
+            height = int((float(img.size[1]) * float(w_percent)))
+            resized_img = img.resize((size, height), Image.LANCZOS)
+            buffer = io.BytesIO()
+            resized_img.save(buffer, format="JPEG", quality=85)
+            raw_data = buffer.getvalue()
+            return raw_data
+        except Exception as e:
+            logger.error(f"can't get image from {model_id}: {e}")
+        return b''
+
     def getCoverArt(self, model_id:str='', big:bool=False) -> Gdk.Paintable:
         if not model_id:
             return None
         if model := self.loaded_models.get(model_id):
             if not big and not isinstance(model, models.Playlist) and model.get_property('gdkPaintable'):
                 return model.get_property('gdkPaintable')
-
-            coverArtPath = model.get_property('coverArt')
-            if not coverArtPath:
-                return None
-
-            tag = TinyTag.get(coverArtPath, image=True)
-            if tag is None:
-                return None
-
-            image_data = tag.get_image()
-            if not image_data:
-                return None
-
             try:
-                img = Image.open(io.BytesIO(image_data))
-                width = 720 if big else 240
-                w_percent = (width / float(img.size[0]))
-                height = int((float(img.size[1]) * float(w_percent)))
-                resized_img = img.resize((width, height), Image.LANCZOS)
-                buffer = io.BytesIO()
-                resized_img.save(buffer, format="JPEG", quality=85)
-                raw_data = buffer.getvalue()
-                gbytes = GLib.Bytes.new(raw_data)
-                texture = Gdk.Texture.new_from_bytes(gbytes)
-                model.set_property('gdkPaintable', texture)
-                return model.get_property('gdkPaintable')
+                if raw_data := self.getCoverArtBytes(model_id, 720 if big else 240):
+                    gbytes = GLib.Bytes.new(raw_data)
+                    texture = Gdk.Texture.new_from_bytes(gbytes)
+                    model.set_property('gdkPaintable', texture)
+                    return model.get_property('gdkPaintable')
             except Exception as e:
                 logger.error(f"can't get image from {model_id}: {e}")
         return None
@@ -399,10 +407,55 @@ class Local(Base):
 
         return {
             'artist': [model.id for model in all_artists if re.search(query, model.name, re.IGNORECASE)][artistOffset:artistCount+artistOffset],
-            'album': [model.id for model in all_albums if re.search(query, model.name, re.IGNORECASE) or re.search(query, model.artist, re.IGNORECASE)][albumOffset:albumCount+albumOffset],
-            'song': [model.id for model in all_songs if re.search(query, model.title, re.IGNORECASE) or re.search(query, model.album, re.IGNORECASE) or re.search(query, model.artist, re.IGNORECASE)][songOffset:songCount+songOffset],
+            'album': [model.id for model in all_albums if re.search(query, ' '.join([model.name, model.artist]), re.IGNORECASE)][albumOffset:albumCount+albumOffset],
+            'song': [model.id for model in all_songs if re.search(query, ' '.join([model.title, model.artist, model.album]), re.IGNORECASE)][songOffset:songCount+songOffset],
             'playlist': [model.id for model in all_playlists if re.search(query, model.name, re.IGNORECASE)][playlistOffset:playlistCount+playlistOffset]
         }
+
+    def systemSearch(self, query:str) -> dict:
+        results = {}
+
+        all_artists = [model for model_id, model in self.loaded_models.items() if model_id in self.album_artist_ids]
+        all_albums = [model for model_id, model in self.loaded_models.items() if model_id.startswith('ALBUM:')]
+        all_songs = [model for model_id, model in self.loaded_models.items() if model_id.startswith('SONG:')]
+        all_playlists = [self.loaded_models.get(playlistId) for playlistId in self.getPlaylists() if playlistId in self.loaded_models]
+
+        # Artists
+        for artist in [model for model in all_artists if re.search(query, model.name, re.IGNORECASE)][:5]:
+            icon_bytes = self.getCoverArtBytes(artist.id, 128)
+            results[artist.id] = {
+                'display': GLib.Variant('s', artist.name),
+                'type': GLib.Variant('s', 'artist'),
+                'icon': GLib.Variant('ay', bytearray(icon_bytes))
+            }
+
+        # Albums
+        for album in [model for model in all_albums if re.search(query, ' '.join([model.name, model.artist]), re.IGNORECASE)][:5]:
+            icon_bytes = self.getCoverArtBytes(album.id, 128)
+            results[album.id] = {
+                'display': GLib.Variant('s', album.name),
+                'type': GLib.Variant('s', 'album'),
+                'icon': GLib.Variant('ay', bytearray(icon_bytes))
+            }
+
+        # Songs
+        for song in [model for model in all_songs if re.search(query, ' '.join([model.title, model.artist, model.album]), re.IGNORECASE)][:5]:
+            icon_bytes = self.getCoverArtBytes(song.id, 128)
+            results[song.id] = {
+                'display': GLib.Variant('s', song.title),
+                'type': GLib.Variant('s', 'song'),
+                'icon': GLib.Variant('ay', bytearray(icon_bytes))
+            }
+
+        # Playlists
+        for playlist in [model for model in all_playlists if re.search(query, model.name, re.IGNORECASE)][:5]:
+            icon_bytes = self.getCoverArtBytes(playlist.id, 128)
+            results[playlist.id] = {
+                'display': GLib.Variant('s', playlist.name),
+                'type': GLib.Variant('s', 'playlist'),
+                'icon': GLib.Variant('ay', bytearray(icon_bytes))
+            }
+        return results
 
     def getInternetRadioStations(self) -> list:
         return [model_id for model_id in list(self.loaded_models) if model_id.startswith('RADIO:')]

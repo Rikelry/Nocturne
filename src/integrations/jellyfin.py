@@ -146,6 +146,24 @@ class Jellyfin(Base):
             return True
         return False
 
+    def getCoverArtBytes(self, model_id:str, size:int) -> bytes:
+        try:
+            response = self.session.get(
+                self.get_url('Items/{id}/Images/Primary', id=model_id),
+                headers=self.get_base_header(),
+                params={
+                    'maxWidth': size,
+                    'quality': 90
+                },
+                verify=not self.get_property('trustServer'),
+                timeout=10
+            )
+            response.raise_for_status()
+            return response.content
+        except Exception as e:
+            logger.error(f"can't get image from {model_id}: {e}")
+        return b''
+
     def getCoverArt(self, model_id:str='', big:bool=False) -> Gdk.Paintable:
         if not model_id:
             return None
@@ -155,27 +173,7 @@ class Jellyfin(Base):
             if not big and model.get_property('gdkPaintable') is not None:
                 return model.get_property('gdkPaintable')
 
-            params = {
-                'maxWidth': 720 if big else 240,
-                'quality': 90
-            }
-            try:
-                response = self.session.get(
-                    self.get_url('Items/{id}/Images/Primary', id=model_id),
-                    headers=self.get_base_header(),
-                    params=params,
-                    verify=not self.get_property('trustServer'),
-                    timeout=10
-                )
-                # Treat non-200 responses as empty content to avoid
-                # propagating network-related exceptions up and into the UI thread
-                response.raise_for_status()
-                response_bytes = response.content
-            except Exception as e:
-                response_bytes = b''
-                logger.error(f"can't get image from {model_id}: {e}")
-
-            if response_bytes and len(response_bytes) > 0:
+            if response_bytes := self.getCoverArtBytes(model_id, 720 if big else 240):
                 try:
                     gbytes = GLib.Bytes.new(response_bytes)
                     texture = Gdk.Texture.new_from_bytes(gbytes)
@@ -727,27 +725,77 @@ class Jellyfin(Base):
                 }
         return {'type': 'not-found'}
 
-    def search(self, query:str, artistCount:int=0, artistOffset:int=0, albumCount:int=0, albumOffset:int=0, songCount:int=0, songOffset:int=0, playlistCount:int=0, playlistOffset:int=0) -> dict:
-        def fetch_type(item_type:str, limit:int, offset:int, fields:str=""):
-            return self.make_request(
-                action='Users/{userId}/Items',
-                mode="GET",
-                params={
-                    "SearchTerm": query,
-                    "IncludeItemTypes": item_type,
-                    "Recursive": "true",
-                    "Limit": limit,
-                    "StartIndex": offset,
-                    "Fields": fields
-                }
-            ).get('Items', [])
+    def __fetch_type(self, item_type:str, query:str, limit:int=5, offset:int=0, fields:str=""):
+        # Method exclusive to Jellyfin, helper for searches
+        return self.make_request(
+            action='Users/{userId}/Items',
+            mode="GET",
+            params={
+                "SearchTerm": query,
+                "IncludeItemTypes": item_type,
+                "Recursive": "true",
+                "Limit": limit,
+                "StartIndex": offset,
+                "Fields": fields
+            }
+        ).get('Items', [])
 
+    def search(self, query:str, artistCount:int=0, artistOffset:int=0, albumCount:int=0, albumOffset:int=0, songCount:int=0, songOffset:int=0, playlistCount:int=0, playlistOffset:int=0) -> dict:
         return {
-            'artist': [item.get("Id") for item in fetch_type("MusicArtist", artistCount, artistOffset)],
-            'album': [item.get("Id") for item in fetch_type("MusicAlbum", albumCount, albumOffset)],
-            'song': [item.get("Id") for item in fetch_type("Audio", songCount, songOffset)],
-            'playlist': [item.get("Id") for item in fetch_type("Playlist", playlistCount, playlistOffset)]
+            'artist': [item.get("Id") for item in self.__fetch_type("MusicArtist", query, artistCount, artistOffset)],
+            'album': [item.get("Id") for item in self.__fetch_type("MusicAlbum", query, albumCount, albumOffset)],
+            'song': [item.get("Id") for item in self.__fetch_type("Audio", query, songCount, songOffset)],
+            'playlist': [item.get("Id") for item in self.__fetch_type("Playlist", query, playlistCount, playlistOffset)]
         }
+
+    def systemSearch(self, query:str) -> dict:
+        results = {}
+
+        # Artists
+        for artist in self.__fetch_type('MusicArtist', query):
+            icon_bytes = self.getCoverArtBytes(artist.get('Id'), 128)
+            results[artist.get('Id')] = {
+                'display': GLib.Variant('s', artist.get('Name')),
+                'type': GLib.Variant('s', 'artist'),
+                'icon': GLib.Variant('ay', bytearray(icon_bytes))
+            }
+
+        # Albums
+        for album in self.__fetch_type('MusicAlbum', query):
+            if artist := album.get('AlbumArtist'):
+                display_name = '{} • {}'.format(album.get('Name'), artist)
+            else:
+                display_name = album.get('Name')
+            icon_bytes = self.getCoverArtBytes(album.get('Id'), 128)
+            results[album.get('Id')] = {
+                'display': GLib.Variant('s', display_name),
+                'type': GLib.Variant('s', 'album'),
+                'icon': GLib.Variant('ay', bytearray(icon_bytes))
+            }
+
+        # Songs
+        for song in self.__fetch_type('Audio', query):
+            if artist := song.get('AlbumArtist'):
+                display_name = '{} • {}'.format(song.get('Name'), artist)
+            else:
+                display_name = song.get('Name')
+            icon_bytes = self.getCoverArtBytes(song.get('Id'), 128)
+            results[song.get('Id')] = {
+                'display': GLib.Variant('s', display_name),
+                'type': GLib.Variant('s', 'song'),
+                'icon': GLib.Variant('ay', bytearray(icon_bytes))
+            }
+
+        # Playlist
+        for playlist in self.__fetch_type('Playlist', query):
+            icon_bytes = self.getCoverArtBytes(playlist.get('Id'), 128)
+            results[playlist.get('Id')] = {
+                'display': GLib.Variant('s', playlist.get('Name')),
+                'type': GLib.Variant('s', 'playlist'),
+                'icon': GLib.Variant('ay', bytearray(icon_bytes))
+            }
+
+        return results
 
     def getInternetRadioStations(self) -> list:
         radios = self.make_request(
@@ -1012,4 +1060,7 @@ class Jellyfin(Base):
             logger.error(f"can't get server information: {e}")
 
         return server_information
+
+
+
 

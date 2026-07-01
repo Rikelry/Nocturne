@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import sys, threading, logging
+from pydbus import SessionBus
 import gi
 
 gi.require_version('Gtk', '4.0')
@@ -35,6 +36,56 @@ from .widgets.pages import LoginDialog
 
 GLib.set_prgname('com.jeffser.Nocturne')
 GLib.set_application_name("Nocturne")
+
+class NocturneService:
+    """
+    <node>
+        <interface name="com.jeffser.Nocturne.Service">
+            <method name="Search">
+                <arg type="a{sa{sv}}" name="result" direction="out"/>
+                <arg type="s" name="query" direction="in"/>
+            </method>
+            <method name="ShowArtist">
+                <arg type="s" name="artist" direction="in"/>
+            </method>
+            <method name="PlayAlbum">
+                <arg type="s" name="album" direction="in"/>
+            </method>
+             <method name="PlaySong">
+                <arg type="s" name="song" direction="in"/>
+            </method>
+             <method name="PlayPlaylist">
+                <arg type="s" name="playlist" direction="in"/>
+            </method>
+        </interface>
+    </node>
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    def Search(self, query:str) -> dict:
+        if integration := get_current_integration():
+            results = integration.systemSearch(query)
+            return results
+        return {}
+
+    def ShowArtist(self, artist:str):
+        if target_value := GLib.Variant('s', artist):
+            self.app.main_window.activate_action("app.show_artist", target_value)
+
+    def PlayAlbum(self, album:str):
+        if target_value := GLib.Variant('s', album):
+            self.app.main_window.activate_action("app.play_album", target_value)
+
+    def PlaySong(self, song:str):
+        if target_value := GLib.Variant('s', song):
+            self.app.main_window.activate_action("app.play_song", target_value)
+
+    def PlayPlaylist(self, playlist:str):
+        if target_value := GLib.Variant('s', playlist):
+            self.app.main_window.activate_action("app.play_playlist", target_value)
+
 
 class NocturneApplication(Adw.Application):
     __gtype_name__ = 'NocturneApplication'
@@ -145,7 +196,12 @@ class NocturneApplication(Adw.Application):
             self.main_window = NocturneWindow(application=self)
             self.load_default_integration()
         self.main_window.present()
-
+        app_service = NocturneService(self)
+        if 'linux' in sys.platform:
+            bus = SessionBus()
+            dbus_proxy = bus.get('org.freedesktop.DBus', '/org/freedesktop/DBus')
+            if not dbus_proxy.NameHasOwner('com.jeffser.Nocturne.Service'):
+                bus.publish('com.jeffser.Nocturne.Service', ('/com/jeffser/Nocturne/Service', app_service))
 
     def do_open(self, files, n_files=None, hint=None):
         self.external_songs = []
