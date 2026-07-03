@@ -26,6 +26,7 @@ class PlayingControlPage(Adw.NavigationPage):
     star_el = Gtk.Template.Child()
     show_sidebar_el = Gtk.Template.Child()
     state_stack_el = Gtk.Template.Child()
+    rating_button = Gtk.Template.Child()
     rating_container = Gtk.Template.Child()
     breakpoint_state = False
     song_connections = {
@@ -169,6 +170,7 @@ class PlayingControlPage(Adw.NavigationPage):
     def update_userRating(self, userRating:int):
         for i, el in enumerate(list(self.rating_container)):
             el.set_icon_name("starred-symbolic" if userRating >= i+1 else "non-starred-symbolic")
+        self.rating_button.set_icon_name("starred-symbolic" if userRating > 0 else "non-starred-symbolic")
 
     def update_starred(self, starred:bool):
         if starred:
