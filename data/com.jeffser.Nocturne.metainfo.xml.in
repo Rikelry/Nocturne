@@ -95,6 +95,19 @@
   </keywords>
 
   <releases>
+    <release version="1.3.1" date="2026-07-03">
+      <url type="details">https://github.com/Jeffser/Nocturne/releases/tag/1.3.1</url>
+      <description translate="no">
+        <p>New</p>
+        <ul>
+          <li>Added Gnome Search Provider</li>
+          <li>Improved pop-out window sizing</li>
+          <li>Redesigned control page (moved rating to popup)</li>
+          <li>Added preferences for Gnome Search Provider</li>
+          <li>Removed "experimental" tag from window dynamic background</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.3.0" date="2026-06-18">
       <url type="details">https://github.com/Jeffser/Nocturne/releases/tag/1.3.0</url>
       <description translate="no">
