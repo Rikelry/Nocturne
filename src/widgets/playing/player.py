@@ -614,18 +614,6 @@ class Player(EventAdapter):
                         if success:
                             model.set_property('duration', duration / Gst.SECOND)
 
-        def update_uri(songId):
-            if stream_url := integration.get_stream_url(songId):
-                self.gst.set_state(Gst.State.READY)
-                self.gst.set_property('uri', stream_url)
-                if self.pause_next_change:
-                    self.gst.set_state(Gst.State.PAUSED)
-                    self.pause_next_change = False
-                else:
-                    self.gst.set_state(Gst.State.PLAYING)
-            else:
-                self.gst.set_state(Gst.State.NULL)
-
         if song_id:
             if song_id != self.song_connections.get('songId'):
                 if self.gst.get_property('volume') == 0:
@@ -635,7 +623,16 @@ class Player(EventAdapter):
                         ))
                 threading.Thread(target=integration.scrobble, args=(song_id,), kwargs={'submission': False}, daemon=True).start()
                 threading.Thread(target=update_default_metadata, args=(song_id,), daemon=True).start()
-                threading.Thread(target=update_uri, args=(song_id,), daemon=True).start()
+                if stream_url := integration.get_stream_url(song_id):
+                    self.gst.set_state(Gst.State.READY)
+                    self.gst.set_property('uri', stream_url)
+                    if self.pause_next_change:
+                        self.gst.set_state(Gst.State.PAUSED)
+                        self.pause_next_change = False
+                    else:
+                        self.gst.set_state(Gst.State.PLAYING)
+                else:
+                    self.gst.set_state(Gst.State.NULL)
         else:
             self.gst.set_state(Gst.State.NULL)
 
