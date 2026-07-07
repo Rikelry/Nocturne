@@ -173,7 +173,13 @@ class Jellyfin(Base):
             if not big and model.get_property('gdkPaintable') is not None:
                 return model.get_property('gdkPaintable')
 
-            if response_bytes := self.getCoverArtBytes(model_id, 720 if big else 240):
+            response_bytes = self.getCoverArtBytes(model_id, 720 if big else 240)
+            if not response_bytes and isinstance(model, models.Song):
+                response_bytes = self.getCoverArtBytes(model.get_property('albumId'), 720 if big else 240)
+                if response_bytes:
+                    model.set_property('coverArt', model.get_property('albumId')) # For getCoverArtUrl
+
+            if response_bytes:
                 try:
                     gbytes = GLib.Bytes.new(response_bytes)
                     texture = Gdk.Texture.new_from_bytes(gbytes)
@@ -195,7 +201,7 @@ class Jellyfin(Base):
             }
             if token := self.get_property('accessToken'):
                 params['api_key'] = token
-            return '{}?{}'.format(self.get_url('Items/{id}/Images/Primary', id=model_id), urlencode(params))
+            return '{}?{}'.format(self.get_url('Items/{id}/Images/Primary', id=model.get_property('coverArt') or model_id), urlencode(params))
         return ""
 
     def ping(self) -> dict:
@@ -1060,6 +1066,7 @@ class Jellyfin(Base):
             logger.error(f"can't get server information: {e}")
 
         return server_information
+
 
 
 
