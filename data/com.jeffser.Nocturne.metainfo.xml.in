@@ -95,6 +95,16 @@
   </keywords>
 
   <releases>
+    <release version="1.3.2" date="2026-07-07">
+      <url type="details">https://github.com/Jeffser/Nocturne/releases/tag/1.3.2</url>
+      <description translate="no">
+        <p>Fix</p>
+        <ul>
+          <li>Fixed occasional crash when playing certain types of media</li>
+          <li>Fixed opus files not being recognized</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.3.1" date="2026-07-03">
       <url type="details">https://github.com/Jeffser/Nocturne/releases/tag/1.3.1</url>
       <description translate="no">
