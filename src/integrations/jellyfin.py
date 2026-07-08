@@ -263,9 +263,16 @@ class Jellyfin(Base):
                 mode='GET'
             ).get("Items", [])
             for library in libraries:
+                library_found = False
                 if library.get("CollectionType") == "music":
-                    self.set_property('libraryId', library.get("Id"))
-                    break
+                    if not library_found:
+                        library_found = True
+                        self.set_property('libraryId', library.get("Id"))
+                    else: #TODO implement method for selecting a library
+                        self.set_property('libraryId', '')
+                        logger.warning("Multiple music libraries found, reverting to include all Jellyfin libraries.")
+                        break
+
             return super().ping()
         return {
             'status': 'error',
