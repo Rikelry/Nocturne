@@ -901,10 +901,14 @@ class Jellyfin(Base):
         id_list = []
         for radio in radios:
             if radio.get("Id") not in self.cache_actions.get('deleted-radios'):
+                primary_tag = radio.get('ImageTags', {}).get('Primary', '')
+                cover_art = self.get_url('Items/{id}/Images/Primary?={tag_id}', id=radio.get("Id"), tag_id=primary_tag) if primary_tag else ""
+
                 radio_model = models.Song(
                     id=radio.get("Id"),
                     title=radio.get("Name"),
-                    duration=-1
+                    duration=-1,
+                    coverArt=cover_art
                 )
                 self.loaded_models[radio.get("Id")] = radio_model
 
