@@ -775,7 +775,7 @@ class Jellyfin(Base):
                 }
         return {'type': 'not-found'}
 
-    def __fetch_type(self, item_type:str, query:str, limit:int=5, offset:int=0, fields:str=""):
+    def __fetch_type(self, item_type:str, query:str, limit:int=5, offset:int=0, fields:str="", verify:bool=False):
         # Method exclusive to Jellyfin, helper for searches
         items = []
         if item_type == "MusicArtist":
@@ -809,6 +809,11 @@ class Jellyfin(Base):
                 params=params
             ).get('Items', [])
 
+        if verify:
+            threading.Thread(target=self.__bulk_verify, args=(item_type, items), daemon=True).start()
+        return items
+
+    def __bulk_verify(self, item_type:str, items:list):
         for item in items:
             if item_type == "MusicArtist":
                 self.verifyArtist(item.get("Id"), artist_object=item, lite=True)
@@ -818,14 +823,13 @@ class Jellyfin(Base):
                 self.verifySong(item.get("Id"), song_object=item)
             elif item_type == "Playlist":
                 self.verifyPlaylist(item.get("Id"), playlist_object=item)
-        return items
 
     def search(self, query:str, artistCount:int=0, artistOffset:int=0, albumCount:int=0, albumOffset:int=0, songCount:int=0, songOffset:int=0, playlistCount:int=0, playlistOffset:int=0) -> dict:
         return {
-            'artist': [item.get("Id") for item in self.__fetch_type("MusicArtist", query, artistCount, artistOffset)],
-            'album': [item.get("Id") for item in self.__fetch_type("MusicAlbum", query, albumCount, albumOffset)],
-            'song': [item.get("Id") for item in self.__fetch_type("Audio", query, songCount, songOffset)],
-            'playlist': [item.get("Id") for item in self.__fetch_type("Playlist", query, playlistCount, playlistOffset)]
+            'artist': [item.get("Id") for item in self.__fetch_type("MusicArtist", query, artistCount, artistOffset, verify=True)],
+            'album': [item.get("Id") for item in self.__fetch_type("MusicAlbum", query, albumCount, albumOffset, verify=True)],
+            'song': [item.get("Id") for item in self.__fetch_type("Audio", query, songCount, songOffset, verify=True)],
+            'playlist': [item.get("Id") for item in self.__fetch_type("Playlist", query, playlistCount, playlistOffset, verify=True)]
         }
 
     def systemSearch(self, query:str) -> dict:
