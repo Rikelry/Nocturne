@@ -168,9 +168,15 @@ class Jellyfin(Base):
 
     def getCoverArtBytes(self, model_id:str, size:int) -> bytes:
         try:
+            if not model_id:
+                return b''
             url = self.get_url('Items/{id}/Images/Primary', id=model_id)
-            if image_url := self.loaded_models.get(model_id).get_property('coverArt'):
-                url = image_url
+            if model := self.loaded_models.get(model_id):
+                image_url = self.loaded_models.get(model_id).get_property('coverArt')
+                if image_url == "None":
+                    return b''
+                elif image_url:
+                    url = image_url
 
             response = self.make_request(
                 action='Items/{id}/Images/Primary',
@@ -192,6 +198,8 @@ class Jellyfin(Base):
             if isinstance(model, models.Song) and model.get_property('isExternalFile'):
                 local.Local.updateCoverArt(self, model_id)
                 return
+            if model.get_property('coverArt') == "None":
+                return None #will otherwise return a 404 error
 
             sizes = {
                 'gdkPaintableBig': 720,
@@ -380,7 +388,7 @@ class Jellyfin(Base):
 
             if artist.get("Id"):
                 primary_tag = artist.get('ImageTags', {}).get('Primary', '')
-                cover_art = self.get_url('Items/{id}/Images/Primary?={tag_id}', id=model_id, tag_id=primary_tag) if primary_tag else ""
+                cover_art = self.get_url('Items/{id}/Images/Primary?={tag_id}', id=model_id, tag_id=primary_tag) if primary_tag else "None"
 
                 self.loaded_models.get(model_id).update_data(
                     id=artist.get("Id"),
@@ -489,7 +497,7 @@ class Jellyfin(Base):
                     ).get("Items", [])
 
                 primary_tag = album.get('ImageTags', {}).get('Primary', '')
-                cover_art = self.get_url('Items/{id}/Images/Primary?={tag_id}', id=model_id, tag_id=primary_tag) if primary_tag else ""
+                cover_art = self.get_url('Items/{id}/Images/Primary?={tag_id}', id=model_id, tag_id=primary_tag) if primary_tag else "None"
 
                 duration = int(sum(song.get("RunTimeTicks", 0) for song in songs) / 10000000)
 
@@ -539,7 +547,7 @@ class Jellyfin(Base):
                 )
             if playlist.get("Id"):
                 primary_tag = playlist.get('ImageTags', {}).get('Primary', '')
-                cover_art = self.get_url('Items/{id}/Images/Primary?={tag_id}', id=model_id, tag_id=primary_tag) if primary_tag else ""
+                cover_art = self.get_url('Items/{id}/Images/Primary?={tag_id}', id=model_id, tag_id=primary_tag) if primary_tag else "None"
 
                 self.loaded_models.get(model_id).update_data(
                     id=playlist.get("Id"),
@@ -609,7 +617,7 @@ class Jellyfin(Base):
                     params=params
                 )
 
-            cover_art = ''
+            cover_art = "None"
             primary_tag = song.get('ImageTags', {}).get('Primary', '')
 
             #Check for cover art on Song object and query Album object if it's missing
@@ -914,7 +922,7 @@ class Jellyfin(Base):
         for radio in radios:
             if radio.get("Id") not in self.cache_actions.get('deleted-radios'):
                 primary_tag = radio.get('ImageTags', {}).get('Primary', '')
-                cover_art = self.get_url('Items/{id}/Images/Primary?={tag_id}', id=radio.get("Id"), tag_id=primary_tag) if primary_tag else ""
+                cover_art = self.get_url('Items/{id}/Images/Primary?={tag_id}', id=radio.get("Id"), tag_id=primary_tag) if primary_tag else "None"
 
                 radio_model = models.Song(
                     id=radio.get("Id"),
