@@ -4,7 +4,7 @@ from gi.repository import GLib, GObject, Gdk, Gio
 from . import secret, models, local, sql_instance
 from .base import Base
 from ..constants import DOWNLOAD_QUEUE_DIR, DOWNLOADS_DIR, DOWNLOAD_MIME_MAP
-import threading, os, platform, logging
+import os, platform, logging
 from urllib.parse import urlencode
 
 logger = logging.getLogger(__name__)
