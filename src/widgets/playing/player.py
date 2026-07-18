@@ -21,6 +21,7 @@ class PlayerAdapter(MprisAdapter):
 
     def __init__(self, player):
         self.player = player
+        self.last_cover_art = {'id': '', 'url': ''}
         super().__init__()
 
     # -- RootAdapter --
@@ -64,9 +65,13 @@ class PlayerAdapter(MprisAdapter):
         if not song:
             return MetadataObj()
 
+        if self.last_cover_art.get('id') != song.get_property('id'):
+            self.last_cover_art['id'] = song.get_property('id')
+            self.last_cover_art['url'] = integration.getCoverArtUrl(song.get_property('id'))
+
         return MetadataObj(
             album=song.get_property('album'),
-            art_url=integration.getCoverArtUrl(song.get_property('id')),
+            art_url=self.last_cover_art.get('url'),
             artists=[urlparse(song.get_property('radioStreamUrl')).netloc.capitalize()] if song.get_property('radioStreamUrl') else ([a.get('name') for a in song.get_property('artists')] or [song.get_property('artist')]),
             as_text=[song.get_property('title')],
             length=song.get_property('duration')*1000000,
