@@ -55,56 +55,55 @@ class Jellyfin(Base):
         return '{}/{}'.format(self.get_property('url').strip('/'), action)
 
     def make_request(self, action:str, json:dict={}, params:dict={}, mode:str="GET", action_keys:dict={}) -> dict:
-        params = {
-            **params
-        }
-        headers = {
-            **self.get_base_header(),
-            "Accept": "application/json"
-        }
-        try:
-            if mode == 'GET':
-                response = self.session.get(
-                    self.get_url(action, **action_keys),
-                    params=params,
-                    json=json,
-                    headers=headers,
-                    verify=not self.get_property('trustServer')
-                )
-            elif mode == 'POST':
-                response = self.session.post(
-                    self.get_url(action, **action_keys),
-                    params=params,
-                    json=json,
-                    headers=headers,
-                    verify=not self.get_property('trustServer')
-                )
-            elif mode == 'DELETE':
-                response = self.session.delete(
-                    self.get_url(action, **action_keys),
-                    params=params,
-                    json=json,
-                    headers=headers,
-                    verify=not self.get_property('trustServer')
-                )
-            elif mode == 'RAWGET':
-                # Get without calling json()
-                response = self.session.get(
-                    self.get_url(action, **action_keys),
-                    params=params,
-                    json=json,
-                    headers=headers,
-                    verify=not self.get_property('trustServer')
-                )
+        def request_job(url):
+            headers = {
+                **self.get_base_header(),
+                "Accept": "application/json"
+            }
+            try:
+                if mode == 'GET':
+                    response = self.session.get(
+                        url,
+                        params=params,
+                        json=json,
+                        headers=headers,
+                        verify=not self.get_property('trustServer')
+                    )
+                elif mode == 'POST':
+                    response = self.session.post(
+                        url,
+                        params=params,
+                        json=json,
+                        headers=headers,
+                        verify=not self.get_property('trustServer')
+                    )
+                elif mode == 'DELETE':
+                    response = self.session.delete(
+                        url,
+                        params=params,
+                        json=json,
+                        headers=headers,
+                        verify=not self.get_property('trustServer')
+                    )
+                elif mode == 'RAWGET':
+                    # Get without calling json()
+                    return self.session.get(
+                        self.get_url(action, **action_keys),
+                        params=params,
+                        json=json,
+                        headers=headers,
+                        verify=not self.get_property('trustServer')
+                    )
                 if response.status_code in (200, 201):
-                    return response
-            if response.status_code in (200, 201):
-                return response.json()
-            elif response.status_code == 204:
-                return {'state': 'ok'}
-        except Exception as e:
-            logger.error(f"action error {action}: {e}")
-        return {}
+                    return response.json()
+                elif response.status_code == 204:
+                    return {'state': 'ok'}
+            except Exception as e:
+                logger.error(f"action error {action}: {e}")
+            return {}
+        action_url = self.get_url(action, **action_keys)
+        request_id = '({}) {}?{}'.format(mode, action_url, urlencode(params))
+        return self.cache_manager.get_result(request_id, request_job, action_url)
 
     # ----------- #
 
@@ -205,7 +204,7 @@ class Jellyfin(Base):
                         model.set_property('gdkPaintable', texture)
                         return model.get_property('gdkPaintable')
                 except Exception as e:
-                    logger.error(f"can't convert image from {model_id}: {e}")
+                    logger.error(f"can't convert image from {model_id} (size {720 if big else 240}): {e}")
         return None
 
     def getCoverArtUrl(self, model_id:str='', big:bool=False) -> str:

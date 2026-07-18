@@ -193,7 +193,7 @@ class Local(Base):
                         model.set_property('gdkPaintable', texture)
                         return model.get_property('gdkPaintable')
             except Exception as e:
-                logger.error(f"can't get image from {model_id}: {e}")
+                logger.error(f"can't get image from {model_id} (size {720 if big else 240}): {e}")
         return None
 
     def getCoverArtUrl(self, model_id:str="", big:bool=False) -> str:

@@ -4,7 +4,7 @@ from gi.repository import GLib, GObject, Gdk, Gio
 from . import secret, models, local
 from ..constants import get_navidrome_path, get_navidrome_env, CONTEXT_MANAGED_NAVIDROME_SERVER, DOWNLOAD_QUEUE_DIR, DOWNLOADS_DIR, DOWNLOAD_MIME_MAP
 from .base import Base
-import random, threading, subprocess, os, re, logging
+import random, threading, subprocess, os, re, logging, time
 from urllib.parse import urlencode, urlparse
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,10 @@ class Navidrome(Base):
 
     url = GObject.Property(type=str, default="http://127.0.0.1:4533")
 
+    cache_requests = {}
+    cache_events = {}
+    cache_lock = threading.Lock()
+
     def get_base_params(self) -> dict:
         params = {
             'v': '1.16.1',
@@ -44,12 +48,16 @@ class Navidrome(Base):
     def get_url(self, action:str) -> str:
         return '{}/rest/{}'.format(self.get_property('url').strip('/'), action)
 
-    def send_request(self, action: str, params:dict={}):
-        return self.session.get(
-            self.get_url(action),
-            params={**self.get_base_params(), **params},
-            verify=not self.get_property('trustServer')
-        )
+    def send_request(self, action:str, params:dict={}):
+        def request_job(url, parameters):
+            return self.session.get(
+                url,
+                params={**self.get_base_params(), **parameters},
+                verify=not self.get_property('trustServer')
+            )
+        action_url = self.get_url(action)
+        request_id = '{}?{}'.format(action_url, urlencode(params))
+        return self.cache_manager.get_result(request_id, request_job, action_url, params)
 
     def make_request(self, action:str, params:dict={}) -> dict:
         try:
@@ -134,7 +142,7 @@ class Navidrome(Base):
                         model.set_property('gdkPaintable', texture)
                         return model.get_property('gdkPaintable')
                 except Exception as e:
-                    logger.error(f"can't convert image from {model_id}: {e}")
+                    logger.error(f"can't convert image from {model_id} (size {720 if big else 240}): {e}")
         return None
 
     def getCoverArtUrl(self, model_id:str='', big:bool=False) -> str:

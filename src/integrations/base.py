@@ -3,12 +3,71 @@
 from gi.repository import GLib, GObject, Gdk
 from . import models, secret, sql_instance
 from ..constants import get_nocturne_version, INTEGRATIONS_DIR
-import requests, urllib3, time, os, json
+import requests, urllib3, time, os, json, threading, logging
 from datetime import datetime
 from requests.adapters import HTTPAdapter, Retry
 
+logger = logging.getLogger(__name__)
+
 # Just so that the logs don't get cluttered with warnings if trust-server = True
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+class CacheManager(GObject.Object):
+    __gtype_name__ = 'NocturneCacheManager'
+
+    # Completely thread safe
+
+    timeout = GObject.Property(type=int, default=20) # Max time waiting for origin thread to finish (seconds)
+    permanence = GObject.Property(type=int, default=5) # How long will the cache object last (seconds)
+
+    results = {}
+    events = {}
+    lock = threading.Lock()
+
+    def delete_result(self, cache_id:str):
+        with self.lock:
+            self.results.pop(cache_id, None)
+
+    def insert_result(self, cache_id:str, result:object):
+        with self.lock:
+            self.results[cache_id] = result
+            GLib.timeout_add(self.get_property('permanence') * 1000, self.delete_result, cache_id)
+
+    def get_result(self, cache_id:str, job:callable, *job_args) -> object:
+        # Will either pull result from cache or do the job (callable)
+        # Call this in a different thread, job will be done in that thread
+        result = None
+        is_origin = False
+        with self.lock:
+            if result := self.results.get(cache_id):
+                # Case 1: Result is in cache
+                return result
+
+            if self.events.get(cache_id) is not None:
+                # Case 2: Pending
+                event = self.events.get(cache_id)
+                is_origin = False
+            else:
+                # Case 3: First request, create event
+                if job is None:
+                    return None
+                event = threading.Event()
+                self.events[cache_id] = event
+                is_origin = True
+
+        if is_origin:
+            try:
+                result = job(*job_args)
+                self.insert_result(cache_id, result)
+            finally:
+                event.set()
+                with self.lock:
+                    del self.events[cache_id]
+        else:
+            event.wait(timeout=self.get_property('timeout'))
+            logger.info(f'(Cache) Job Skipped : {cache_id}')
+            result = self.results.get(cache_id)
+        return result
 
 # DO NOT USE DIRECTLY
 class Base(GObject.Object):
@@ -49,6 +108,9 @@ class Base(GObject.Object):
     session = requests.Session()
     session.mount("http://", session_adapter)
     session.mount("https://", session_adapter)
+
+    # Epic custom lightweight cache manager
+    cache_manager = CacheManager()
 
     def open_json(self, filename:str, fallback={}) -> dict:
         # please use sql when possible
