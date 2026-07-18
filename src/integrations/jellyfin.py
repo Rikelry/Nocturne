@@ -87,6 +87,17 @@ class Jellyfin(Base):
                     headers=headers,
                     verify=not self.get_property('trustServer')
                 )
+            elif mode == 'RAWGET':
+                # Get without calling json()
+                response = self.session.get(
+                    self.get_url(action, **action_keys),
+                    params=params,
+                    json=json,
+                    headers=headers,
+                    verify=not self.get_property('trustServer')
+                )
+                if response.status_code in (200, 201):
+                    return response
             if response.status_code in (200, 201):
                 return response.json()
             elif response.status_code == 204:
@@ -148,15 +159,14 @@ class Jellyfin(Base):
 
     def getCoverArtBytes(self, model_id:str, size:int) -> bytes:
         try:
-            response = self.session.get(
-                self.get_url('Items/{id}/Images/Primary', id=model_id),
-                headers=self.get_base_header(),
+            response = self.make_request(
+                action='Items/{id}/Images/Primary',
+                action_keys={'id': model_id},
                 params={
                     'maxWidth': size,
                     'quality': 90
                 },
-                verify=not self.get_property('trustServer'),
-                timeout=10
+                mode="RAWGET"
             )
             response.raise_for_status()
             return response.content
@@ -1047,16 +1057,15 @@ class Jellyfin(Base):
             'username': self.get_property('user').title()
         }
         try:
-            params = {
-                "maxWidth": 240,
-                "quality": 90
-            }
-            response = self.session.get(
-                self.get_url('Users/{userId}/Images/Primary'),
-                params=params,
-                verify=not self.get_property('trustServer')
+            response = self.make_request(
+                action='Users/{userId}/Images/Primary',
+                params={
+                    "maxWidth": 240,
+                    "quality": 90
+                },
+                mode='RAWGET'
             )
-            response_bytes = response.content if response.status_code == 200 else b''
+            response_bytes = response.content if response.status_code in (200, 201) else b''
             if response_bytes and len(response_bytes) > 0:
                 gbytes = GLib.Bytes.new(response_bytes)
                 server_information['picture'] = Gdk.Texture.new_from_bytes(gbytes)

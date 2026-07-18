@@ -91,14 +91,12 @@ class Navidrome(Base):
             cover_id = model_id
             if model := self.loaded_models.get(model_id):
                 cover_id = model.get_property('coverArt') or model_id
-            response = self.session.get(
-                self.get_url('getCoverArt'),
+            response = self.send_request(
+                action='getCoverArt',
                 params={
-                    **self.get_base_params(),
                     'id': cover_id,
                     'size': size
-                },
-                verify=not self.get_property('trustServer')
+                }
             )
             response.raise_for_status()
             return response.content
@@ -637,28 +635,21 @@ class Navidrome(Base):
             'username': self.get_property('user').title()
         }
         try:
-            response = self.session.get(
-                self.get_url('ping'),
-                params=self.get_base_params(),
-                verify=not self.get_property('trustServer')
-            )
-            if response.status_code == 200:
+            response = self.send_request('ping')
+            if response.status_code in (200, 201): #TODO do not use send_request
                 data = response.json().get('subsonic-response', {})
                 server_information['title'] = "{} {}".format(data.get('type'), data.get('serverVersion')).title()
         except Exception as e:
             logger.error(f"can't get server information: {e}")
 
         try:
-            params = {
-                **self.get_base_params(),
-                'username': self.get_property('user')
-            }
-            response = self.session.get(
-                self.get_url('getAvatar'),
-                params=params,
-                verify=not self.get_property('trustServer')
+            response = self.send_request(
+                action='getAvatar',
+                params={
+                    'username': self.get_property('user')
+                }
             )
-            response_bytes = response.content if response.status_code == 200 else b''
+            response_bytes = response.content if response.status_code in (200, 201) else b''
             if response_bytes and len(response_bytes) > 0:
                 gbytes = GLib.Bytes.new(response_bytes)
                 server_information['picture'] = Gdk.Texture.new_from_bytes(gbytes)
