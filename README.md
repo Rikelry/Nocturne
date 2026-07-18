@@ -1,7 +1,7 @@
 <p align="center"><img src="https://jeffser.com/images/nocturne/logo.svg">
 <h1 align="center">Nocturne</h1>
 
-<p align="center">Nocturne is a Navidrome / Jellyfin client that brings all your music together in one place, Nocturne not only connects to existing instances but it's capable of installing and managing its own Navidrome instance</p>
+<p align="center">Nocturne is a Jellyfin, OpenSubsonic and Bandcamp client that brings all your music together in one place, Nocturne not only connects to existing instances but it's capable of installing and managing its own Navidrome instance</p>
 
 <p align="center"><a href='https://flathub.org/apps/com.jeffser.Nocturne'><img width='190' alt='Download on Flathub' src='https://flathub.org/api/badge?locale=en'/></a></p>
 
@@ -17,7 +17,7 @@
 
 - Exploration by songs, artists, albums, radios and playlists
 - Playlist management
-- Compatibility with Jellyfin, OpenSubsonic and local files
+- Compatibility with Jellyfin, OpenSubsonic, Bandcamp and local files
 - Audio equalizer and audio visualizer
 - Mpris integration
 - Integrated Navidrome instance management
@@ -72,9 +72,9 @@ nix-shell -p nocturne
 ```
 or add it to your sytem packages:
 ```nix
-  environment.systemPackages = [
-    pkgs.nocturne
-  ];
+environment.systemPackages = [
+pkgs.nocturne
+];
 ```
 
 ## Build

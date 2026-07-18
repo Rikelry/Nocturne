@@ -7,12 +7,12 @@
   <name>Nocturne</name>
   <summary>Bring your music library together</summary>
   <description>
-    <p>A modern Navidrome / Jellyfin client</p>
+    <p>A modern music client</p>
     <p>Features</p>
     <ul>
+      <li>Compatibility with Jellyfin, OpenSubsonic, Bandcamp and local files</li>
       <li>Exploration by songs, artists, albums, radios and playlists</li>
       <li>Playlist management</li>
-      <li>Compatibility with Jellyfin, OpenSubsonic and local files</li>
       <li>Audio equalizer and audio visualizer</li>
       <li>Mpris integration</li>
       <li>Integrated Navidrome instance management</li>
@@ -88,6 +88,8 @@
   </screenshots>
   
   <keywords>
+    <keyword>opensubsonic</keyword>
+    <keyword>bandcamp</keyword>
     <keyword>navidrome</keyword>
     <keyword>jellyfin</keyword>
     <keyword>music</keyword>
