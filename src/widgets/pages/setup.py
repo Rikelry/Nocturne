@@ -38,6 +38,13 @@ class SetupPage(Adw.NavigationPage):
         }.get(platform.machine().lower())
         return "https://github.com/navidrome/navidrome/releases/download/v{tag}/navidrome_{tag}_linux_{architecture}64.tar.gz".format(tag=latest_tag, architecture=arch)
 
+    def verify_instance(self):
+        # Call in different thread
+        if self.integration.start_instance():
+            GLib.idle_add(self.main_stack.set_visible_child_name, 'success')
+        else:
+            GLib.idle_add(self.main_stack.set_visible_child_name, 'error')
+
     def download_worker(self):
         try:
             url = self.get_latest_url()
@@ -63,14 +70,20 @@ class SetupPage(Adw.NavigationPage):
             GLib.idle_add(self.downloading_status_page.set_description, _("Installing"))
             with tarfile.open(download_path, "r:gz") as tar:
                 tar.extractall(path=BASE_NAVIDROME_DIR, filter='fully_trusted')
-            if self.integration.start_instance():
-                GLib.idle_add(self.main_stack.set_visible_child_name, 'success')
-                if os.path.isfile(download_path):
-                    os.remove(download_path)
-            else:
-                self.main_stack.set_visible_child_name('error')
+            if os.path.isfile(download_path):
+                os.remove(download_path)
 
-        except Exception:
+            if self.integration.get_property('libraryDir'):
+                threading.Thread(target=self.verify_instance).start()
+            else:
+                def response(dialog, result):
+                    if folder := dialog.select_folder_finish(result):
+                        self.integration.set_property('libraryDir', folder.get_path())
+                        threading.Thread(target=self.verify_instance).start()
+                dialog = Gtk.FileDialog(title=_("Music Library"))
+                dialog.select_folder(self.get_root(), None, response)
+        except Exception as e:
+            print(e)
             self.main_stack.set_visible_child_name('error')
 
     @Gtk.Template.Callback()

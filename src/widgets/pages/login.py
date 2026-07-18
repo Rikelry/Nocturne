@@ -101,7 +101,7 @@ class LoginDialog(Adw.Dialog):
 
         current_path = row.get_subtitle()
         dialog = Gtk.FileDialog(
-            title=_("Local Music Library"),
+            title=_("Music Library"),
             initial_folder=Gio.File.new_for_path(current_path) if current_path else None
         )
         dialog.select_folder(self.get_root(), None, response)
