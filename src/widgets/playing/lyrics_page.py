@@ -113,52 +113,52 @@ class PlayingLyricsPage(Gtk.Stack):
         integration.connect_to_model('currentSong', 'songId', self.song_changed)
         integration.connect_to_model('currentSong', 'positionSeconds', self.position_changed)
 
+    def update_lyrics(self, song_id:str, attempt_download:bool):
+        # We verify if the song requested and the current song are the same
+        # We have to do this both before and after downloading the lyrics
+        settings = Gio.Settings(schema_id="com.jeffser.Nocturne")
+        integration = get_current_integration()
+        if integration.loaded_models.get('currentSong').get_property('songId') != song_id:
+            return
+        lyrics = get_lyrics(song_id, attempt_download)
+        if integration.loaded_models.get('currentSong').get_property('songId') != song_id:
+            return
+
+        if settings.get_value('auto-download-lyrics').unpack() and lyrics.get('type') == 'not-found-locally':
+            thread = threading.Thread(target=self.update_lyrics, args=(song_id, True), daemon=True)
+            GLib.timeout_add(3000, thread.start)
+            return
+
+        GLib.idle_add(self.set_visible_child_name, lyrics.get('type'))
+        if lyrics.get('type') == 'plain':
+            GLib.idle_add(self.plain_label_el.set_label, lyrics.get('content'))
+        elif lyrics.get('type') == 'lrc':
+            GLib.idle_add(self.lrc_list_el.remove_all)
+            if lyrics.get('content')[0].get('content'):
+                lyrics['content'].insert(0, {'content': '', 'ms': 0})
+            simulate_wbwl = settings.get_value('simulate-word-by-word-lyrics').unpack()
+            content = lyrics.get('content')
+            for i, line in enumerate(content):
+                if simulate_wbwl:
+                    duration_ms = 1000
+                    if i + 1 < len(content):
+                        duration_ms = content[i+1].get('ms') - line.get('ms')
+                    else:
+                        integration = get_current_integration()
+                        if model := integration.loaded_models.get(song_id):
+                            duration_ms = model.get_property('duration') * 1000 - line.get('ms')
+                else:
+                    duration_ms = 0
+                row = LyricRow(
+                    ms=line.get('ms'),
+                    content=line.get('content', ''),
+                    duration_ms=duration_ms
+                )
+                GLib.idle_add(self.lrc_list_el.append, row)
+
     def song_changed(self, model_id:str, lrclib_download:bool=False):
         self.set_visible_child_name('loading')
-        settings = Gio.Settings(schema_id="com.jeffser.Nocturne")
-
-        def update_lyrics(song_id:str, attempt_download:bool):
-            # We verify if the song requested and the current song are the same
-            # We have to do this both before and after downloading the lyrics
-            integration = get_current_integration()
-            if integration.loaded_models.get('currentSong').get_property('songId') != song_id:
-                return
-            lyrics = get_lyrics(song_id, attempt_download)
-            if integration.loaded_models.get('currentSong').get_property('songId') != song_id:
-                return
-            GLib.idle_add(self.set_visible_child_name, lyrics.get('type'))
-            if lyrics.get('type') == 'plain':
-                GLib.idle_add(self.plain_label_el.set_label, lyrics.get('content'))
-            elif lyrics.get('type') == 'lrc':
-                GLib.idle_add(self.lrc_list_el.remove_all)
-                if lyrics.get('content')[0].get('content'):
-                    lyrics['content'].insert(0, {'content': '', 'ms': 0})
-                simulate_wbwl = settings.get_value('simulate-word-by-word-lyrics').unpack()
-                content = lyrics.get('content')
-                for i, line in enumerate(content):
-                    if simulate_wbwl:
-                        duration_ms = 1000
-                        if i + 1 < len(content):
-                            duration_ms = content[i+1].get('ms') - line.get('ms')
-                        else:
-                            integration = get_current_integration()
-                            if model := integration.loaded_models.get(song_id):
-                                duration_ms = model.get_property('duration') * 1000 - line.get('ms')
-                    else:
-                        duration_ms = 0
-                    row = LyricRow(
-                        ms=line.get('ms'),
-                        content=line.get('content', ''),
-                        duration_ms=duration_ms
-                    )
-                    GLib.idle_add(self.lrc_list_el.append, row)
-
-        if settings.get_value('auto-download-lyrics').unpack():
-            # A timeout so that it does not auto download songs whilst skipping through songs
-            thread = threading.Thread(target=update_lyrics, args=(model_id, True), daemon=True)
-            GLib.timeout_add(3000, thread.start)
-        else:
-            threading.Thread(target=update_lyrics, args=(model_id, lrclib_download), daemon=True).start()
+        threading.Thread(target=self.update_lyrics, args=(model_id, lrclib_download), daemon=True).start()
 
     def position_changed(self, position_seconds:float):
         if self.get_visible_child_name() == 'lrc':
