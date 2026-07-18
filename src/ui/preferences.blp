@@ -18,6 +18,10 @@ template $NocturnePreferencesDialog: Adw.PreferencesDialog {
         title: _("Simulate Word by Word Lyrics");
         subtitle: _("Used when only line by line lyrics are available");
       }
+      Adw.SwitchRow auto_download_lyrics_el {
+        title: _("Auto Download Lyrics");
+        subtitle: _("Used when the current instance does not provide lyrics");
+      }
       Adw.SwitchRow use_gain_el {
         title: _("Use Track and Album Gain");
         subtitle: _("Adjust the volume based on gain metadata");

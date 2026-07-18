@@ -15,6 +15,7 @@ class NocturnePreferences(Adw.PreferencesDialog):
     restore_el = Gtk.Template.Child()
     hide_on_close_el = Gtk.Template.Child()
     simulate_wbwl_el = Gtk.Template.Child()
+    auto_download_lyrics_el = Gtk.Template.Child()
     use_gain_el = Gtk.Template.Child()
     default_page_el = Gtk.Template.Child()
     bitrate_el = Gtk.Template.Child()
@@ -96,6 +97,12 @@ class NocturnePreferences(Adw.PreferencesDialog):
         settings.bind(
             "simulate-word-by-word-lyrics",
             self.simulate_wbwl_el,
+            "active",
+            Gio.SettingsBindFlags.DEFAULT
+        )
+        settings.bind(
+            "auto-download-lyrics",
+            self.auto_download_lyrics_el,
             "active",
             Gio.SettingsBindFlags.DEFAULT
         )
