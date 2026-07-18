@@ -689,6 +689,16 @@ class NavidromeIntegrated(Navidrome):
     serverRunning = GObject.Property(type=bool, default=False)
     process = None
 
+    def ping(self) -> dict:
+        gio_file = Gio.File.new_for_path(self.get_property('libraryDir'))
+        if new_path := gio_file.get_path():
+            self.set_property('libraryDir', new_path)
+            return super().ping()
+        return {
+            'status': 'error',
+            'message': _('Could not locate path, try again')
+        }
+
     def check_if_ready(self, row) -> bool:
         if get_navidrome_path():
             return True

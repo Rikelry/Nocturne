@@ -2,7 +2,6 @@
 
 from gi.repository import Gtk, Adw, Gio, GLib
 from ...integrations import secret
-from ...constants import DEFAULT_MUSIC_DIR
 from ..containers import ContextContainer
 import threading, time
 
@@ -89,10 +88,10 @@ class LoginDialog(Adw.Dialog):
             if folder := dialog.select_folder_finish(result):
                 row.set_subtitle(folder.get_path())
 
-        initial_folder = Gio.File.new_for_path(row.get_subtitle() or DEFAULT_MUSIC_DIR)
+        current_path = row.get_subtitle()
         dialog = Gtk.FileDialog(
             title=_("Local Music Library"),
-            initial_folder=initial_folder
+            initial_folder=Gio.File.new_for_path(current_path) if current_path else None
         )
         dialog.select_folder(self.get_root(), None, response)
 

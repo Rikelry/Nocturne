@@ -29,7 +29,7 @@ gi.require_version('Gst', '1.0')
 from gi.repository import Gtk, Gdk, Gio, Adw, GLib
 from .window import NocturneWindow
 from .preferences import NocturnePreferences
-from .constants import get_song_info_from_file, TRANSLATORS, DEFAULT_MUSIC_DIR, set_version
+from .constants import get_song_info_from_file, TRANSLATORS, set_version
 from .integrations import get_current_integration, set_current_integration, get_available_integrations, models
 from .widgets.playing import Player
 from .widgets.pages import LoginDialog
@@ -113,8 +113,6 @@ class NocturneApplication(Adw.Application):
     def load_default_integration(self):
         settings = Gio.Settings(schema_id="com.jeffser.Nocturne")
         selected_local_folder = settings.get_value("integration-library-dir").unpack()
-        if not selected_local_folder:
-            settings.set_string("integration-library-dir", DEFAULT_MUSIC_DIR)
 
         if selected_instance := settings.get_value("selected-instance-type").unpack():
             if integration_type := get_available_integrations().get(selected_instance):

@@ -24,12 +24,6 @@ DATA_DIR = get_xdg_home("XDG_DATA_HOME", "~/.local/share")
 CONFIG_DIR = get_xdg_home("XDG_CONFIG_HOME", "~/.config")
 CACHE_DIR = get_xdg_home("XDG_CACHE_HOME", "~/.cache")
 
-# Wrapped in a try/catch for non-Linux platforms where these commands don't exist
-try:
-    DEFAULT_MUSIC_DIR = subprocess.check_output(["xdg-user-dir", "MUSIC"], text=True).strip() or os.path.expanduser("~/Music")
-except Exception:
-    DEFAULT_MUSIC_DIR = os.path.expanduser("~/Music")
-
 INTEGRATIONS_DIR = os.path.join(DATA_DIR, "integrations")
 os.makedirs(INTEGRATIONS_DIR, exist_ok=True)
 # DEPRECATED DONT USE THESE VARIABLES

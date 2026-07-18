@@ -2,7 +2,7 @@
 
 from gi.repository import GLib, GObject, Gdk
 from . import models, secret, sql_instance
-from ..constants import get_nocturne_version, DEFAULT_MUSIC_DIR, INTEGRATIONS_DIR
+from ..constants import get_nocturne_version, INTEGRATIONS_DIR
 import requests, urllib3, time, os, json
 from datetime import datetime
 from requests.adapters import HTTPAdapter, Retry
@@ -25,7 +25,7 @@ class Base(GObject.Object):
     url = GObject.Property(type=str)
     trustServer = GObject.Property(type=bool, default=False)
     user = GObject.Property(type=str)
-    libraryDir = GObject.Property(type=str, default=DEFAULT_MUSIC_DIR)
+    libraryDir = GObject.Property(type=str)
 
     # Show spinner in sidebar with message as tooltip text if set
     loadingMessage = GObject.Property(type=str)

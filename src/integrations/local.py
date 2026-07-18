@@ -1,6 +1,6 @@
 # local.py
 
-from gi.repository import GLib, GObject, Gdk
+from gi.repository import GLib, GObject, Gdk, Gio
 from . import models, sql_instance
 from .base import Base
 import random, threading, io, pathlib, re, os, time, uuid, pwd, getpass, shutil, logging
@@ -127,6 +127,16 @@ class Local(Base):
                 )
 
     # ----------- #
+
+    def ping(self) -> dict:
+        gio_file = Gio.File.new_for_path(self.get_property('libraryDir'))
+        if new_path := gio_file.get_path():
+            self.set_property('libraryDir', new_path)
+            return super().ping()
+        return {
+            'status': 'error',
+            'message': _('Could not locate path, try again')
+        }
 
     def get_stream_url(self, song_id:str) -> str:
         model = self.loaded_models.get(song_id)
