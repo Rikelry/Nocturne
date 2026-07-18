@@ -10,6 +10,7 @@ class LoginDialog(Adw.Dialog):
     __gtype_name__ = 'NocturneLoginDialog'
 
     toast_overlay = Gtk.Template.Child()
+    link_button_el = Gtk.Template.Child()
     server_status_el = Gtk.Template.Child()
     extra_menu_el = Gtk.Template.Child()
     status_page = Gtk.Template.Child()
@@ -32,6 +33,12 @@ class LoginDialog(Adw.Dialog):
         self.status_page.set_icon_name(metadata.get('icon-name'))
         self.status_page.set_title(metadata.get('title') or _("Login"))
         self.status_page.set_description(metadata.get('description') or '')
+
+        # Additional Link
+        additional_link_metadata = metadata.get('additional-link', {})
+        self.link_button_el.get_parent().set_visible(additional_link_metadata.get('url'))
+        self.link_button_el.set_label(additional_link_metadata.get('label') or additional_link_metadata.get('url') or '')
+        self.link_button_el.set_uri(additional_link_metadata.get('url') or '')
 
         # Server Status
         if 'status' in metadata.get('entries', []):

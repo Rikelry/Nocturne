@@ -733,3 +733,30 @@ class NavidromeIntegrated(Navidrome):
             self.process.terminate()
             self.process = None
         self.set_property('serverRunning', False)
+
+class Bandcamp(Navidrome):
+    __gtype_name__ = 'NocturneIntegrationBandcamp'
+
+    login_page_metadata = {
+        'icon-name': "music-note-symbolic",
+        'title': _("Bandcamp"),
+        'description': _("Important: Use your Subsonic login information."),
+        'entries': ['user', 'password'],
+        'additional-link': {
+            'label': _("Bandcamp User Settings"),
+            'url': 'https://bandcamp.com/settings?pane=fan'
+        }
+    }
+    button_metadata = {
+        'title': _("Bandcamp"),
+        'subtitle': _("Explore your online library")
+    }
+
+    url = GObject.Property(type=str, default="https://bandcamp.com/api/subsonic")
+    limitations = ('no-downloads',)
+
+    def getServerInformation(self) -> dict:
+        server_info = super().getServerInformation()
+        server_info['link'] = 'https://bandcamp.com'
+        return server_info
+

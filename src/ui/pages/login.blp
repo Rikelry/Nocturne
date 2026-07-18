@@ -27,6 +27,11 @@ template $NocturneLoginDialog: Adw.Dialog {
             hexpand: true;
             selection-mode: none;
 
+            Adw.ActionRow {
+              child: Gtk.LinkButton link_button_el {
+              };
+            }
+
             Adw.ActionRow server_status_el {
               title: _("Server Status");
               subtitle: _("Not Running");

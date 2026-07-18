@@ -1,7 +1,7 @@
 # __init__.py
 
 from .jellyfin import Jellyfin
-from .navidrome import Navidrome, NavidromeIntegrated
+from .navidrome import Navidrome, NavidromeIntegrated, Bandcamp
 from .local import Local, Offline
 from .base import Base
 from . import models, secret

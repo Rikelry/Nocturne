@@ -2,7 +2,7 @@
 
 from gi.repository import Gtk, Adw
 from . import LoginDialog
-from ...integrations import Local, Navidrome, NavidromeIntegrated, Jellyfin, Offline
+from ...integrations import Local, Navidrome, NavidromeIntegrated, Bandcamp, Jellyfin, Offline
 import threading
 
 @Gtk.Template(resource_path='/com/jeffser/Nocturne/pages/welcome.ui')
@@ -13,7 +13,7 @@ class WelcomePage(Adw.NavigationPage):
 
     def __init__(self):
         super().__init__()
-        integrations = [Navidrome, NavidromeIntegrated, Jellyfin, Local, Offline]
+        integrations = [Navidrome, NavidromeIntegrated, Bandcamp, Jellyfin, Local, Offline]
         for integration in integrations:
             metadata = integration.button_metadata
             row = Adw.ActionRow(
