@@ -35,6 +35,7 @@ def set_current_integration(new_integration):
     settings.set_string('selected-instance-type', integration.__gtype_name__)
     settings.set_string('integration-ip', integration.get_property('url'))
     settings.set_string('integration-user', integration.get_property('user'))
-    settings.set_string("integration-library-dir", integration.get_property('libraryDir'))
+    if integration.__gtype_name__ != 'NocturneIntegrationOffline':
+        settings.set_string("integration-library-dir", integration.get_property('libraryDir'))
     settings.set_boolean("integration-trust-server", integration.get_property('trustServer'))
 

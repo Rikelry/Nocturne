@@ -27,6 +27,10 @@ class LoginDialog(Adw.Dialog):
     def __init__(self, integration):
         super().__init__()
         self.integration = integration
+        if not self.integration.get_property('libraryDir'):
+            settings = Gio.Settings(schema_id="com.jeffser.Nocturne")
+            if selected_local_folder := settings.get_value("integration-library-dir").unpack():
+                self.integration.set_property('libraryDir', selected_local_folder)
 
         # Metadata
         metadata = self.integration.login_page_metadata

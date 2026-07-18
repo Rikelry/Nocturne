@@ -692,7 +692,8 @@ class NavidromeIntegrated(Navidrome):
         gio_file = Gio.File.new_for_path(self.get_property('libraryDir'))
         if new_path := gio_file.get_path():
             self.set_property('libraryDir', new_path)
-            return super().ping()
+            if self.start_instance():
+                return super().ping()
         return {
             'status': 'error',
             'message': _('Could not locate path, try again')

@@ -122,6 +122,7 @@ class NocturneApplication(Adw.Application):
                     trustServer=settings.get_value('integration-trust-server').unpack()
                 )
                 directory = settings.get_value('integration-library-dir').unpack()
+                print('!!!!!!!!!!!', directory)
                 if Gio.File.new_for_path(directory).query_exists():
                     integration.set_property('libraryDir', directory)
                 threading.Thread(target=self.try_login, args=(integration,), daemon=True).start()
