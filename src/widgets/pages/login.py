@@ -110,10 +110,10 @@ class LoginDialog(Adw.Dialog):
     @Gtk.Template.Callback()
     def login_button_clicked(self, button=None):
         self.login_button_el.set_sensitive(False)
-        self.integration.set_property('url', self.url_el.get_text())
+        self.integration.set_property('url', self.url_el.get_text().strip())
         self.integration.set_property('trustServer', self.trust_server_el.get_active())
-        self.integration.set_property('user', self.user_el.get_text())
-        secret.store_password(self.password_el.get_text())
+        self.integration.set_property('user', self.user_el.get_text().strip())
+        secret.store_password(self.password_el.get_text().strip())
         self.integration.set_property('libraryDir', self.directory_el.get_subtitle())
         threading.Thread(target=self.get_root().get_application().try_login, args=(self.integration,), daemon=True).start()
 
