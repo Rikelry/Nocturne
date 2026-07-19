@@ -241,13 +241,24 @@ def main(version):
         args = parser.parse_args()
         actions_to_call = {} # action-name : value
         for action, value in vars(args).items():
-            if value:
+            if action == 'search' and value and isinstance(value, str):
+                if app_service := SessionBus().get("com.jeffser.Nocturne.Service"): # .Service cause it returns results
+                    results = {}
+                    for item_id, item in app_service.Search(value).items():
+                        if item.get('type') not in results:
+                            results[item.get('type')] = []
+                        results[item.get('type')].append({
+                            'display': item.get('display'),
+                            'id': item_id
+                        })
+                    print(results)
+                    exit = True
+            elif value:
                 actions_to_call[action] = [GLib.Variant('s', value)] if isinstance(value, str) else []
         if len(actions_to_call) > 0:
             if app_service := SessionBus().get("com.jeffser.Nocturne"):
-                if not app_service.Ping():
-                    raise Exception("Nocturne is not running")
                 for action, value in actions_to_call.items():
+                    print(action, value)
                     app_service["org.gtk.Actions"].Activate(action, value, {})
                     exit = True
     except Exception as e:

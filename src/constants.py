@@ -150,6 +150,11 @@ CLI_ARGUMENTS = {
         '--logout': {
             'message': 'logout from the current instance',
             'action-name': 'logout'
+        },
+        '--search': {
+            'message': 'get top results based on query (JSON)',
+            'action-name': 'search',
+            'metavar': 'QUERY'
         }
     }
 }

@@ -658,16 +658,16 @@ def show_album_from_song(window, model_id:str):
 def play_album(window, model_id:str):
     def run():
         integration = get_current_integration()
+        integration.verifyAlbum(album.get_property('id'), force_update=True, use_threading=False)
         if album := integration.loaded_models.get(model_id):
-            integration.verifyAlbum(album.get_property('id'), force_update=True, use_threading=False)
             __replace_queue(window, [s.get('id') for s in album.get_property('song')], origin_id=model_id)
     threading.Thread(target=run, daemon=True).start()
 
 def play_album_next(window, model_id:str):
     def run():
         integration = get_current_integration()
+        integration.verifyAlbum(album.get_property('id'), force_update=True, use_threading=False)
         if album := integration.loaded_models.get(model_id):
-            integration.verifyAlbum(album.get_property('id'), force_update=True, use_threading=False)
             __play_next(window, [s.get('id') for s in album.get_property('song')])
             __show_custom_toast(window, model_id, 'name', _('Playing Next'))
     threading.Thread(target=run, daemon=True).start()
@@ -675,8 +675,8 @@ def play_album_next(window, model_id:str):
 def play_album_later(window, model_id:str):
     def run():
         integration = get_current_integration()
+        integration.verifyAlbum(album.get_property('id'), force_update=True, use_threading=False)
         if album := integration.loaded_models.get(model_id):
-            integration.verifyAlbum(album.get_property('id'), force_update=True, use_threading=False)
             __play_later(window, [s.get('id') for s in album.get_property('song')])
             __show_custom_toast(window, model_id, 'name', _('Playing Later'))
     threading.Thread(target=run, daemon=True).start()
@@ -684,8 +684,8 @@ def play_album_later(window, model_id:str):
 def play_album_shuffle(window, model_id:str):
     def run():
         integration = get_current_integration()
+        integration.verifyAlbum(album.get_property('id'), force_update=True, use_threading=False)
         if album := integration.loaded_models.get(model_id):
-            integration.verifyAlbum(album.get_property('id'), force_update=True, use_threading=False)
             song_list = [s.get('id') for s in album.get_property('song')]
             random.shuffle(song_list)
             __replace_queue(window, song_list, origin_id=model_id)
