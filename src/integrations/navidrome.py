@@ -182,20 +182,7 @@ class Navidrome(Base):
         # returns a list of IDs
 
         if self.__gtype_name__ == 'NocturneIntegrationBandcamp':
-            if list_type == 'starred':
-                # TODO remove once Bandcamp implements album stars
-                conn, cursor = sql_instance.get_connection(self)
-                cursor.execute("SELECT id FROM stars")
-                all_stars = [str(r[0]) for r in cursor.fetchall()]
-                conn.close()
-                album_ids = []
-                for model_id in all_stars:
-                    if model := self.loaded_models.get(model_id):
-                        if isinstance(model, models.Album):
-                            album_ids.append(model_id)
-                return album_ids
-
-            elif list_type in ('frequent', 'recent'):
+            if list_type in ('frequent', 'recent'):
                 # TODO remove once Bandcamp implements scrobble
                 album_views = {}
                 conn, cursor = sql_instance.get_connection(self)
@@ -234,13 +221,8 @@ class Navidrome(Base):
                     album_dict['id'] = new_id
                     album_ids.append(new_id)
                     if self.__gtype_name__ == 'NocturneIntegrationBandcamp':
-                        # TODO remove once Bandcamp implements rating and favorite albums
+                        # TODO remove once Bandcamp implements rating
                         album_dict['userRating'] = self.get_rating(new_id)
-                        conn, cursor = sql_instance.get_connection(self)
-                        cursor.execute("SELECT id FROM stars")
-                        album_dict['starred'] = album_dict['id'] in [str(r[0]) for r in cursor.fetchall()]
-                        conn.close()
-
                     if new_id in self.loaded_models:
                         self.loaded_models.get(new_id).update_data(**album_dict)
                     else:
@@ -330,12 +312,8 @@ class Navidrome(Base):
             response = self.make_request('getAlbum', {'id': model_id})
             album_dict = response.get('album', {})
             if self.__gtype_name__ == 'NocturneIntegrationBandcamp':
-                # TODO remove once Bandcamp implements rating and favorite albums
+                # TODO remove once Bandcamp implements rating
                 album_dict['userRating'] = self.get_rating(model_id)
-                conn, cursor = sql_instance.get_connection(self)
-                cursor.execute("SELECT id FROM stars")
-                album_dict['starred'] = album_dict['id'] in [str(r[0]) for r in cursor.fetchall()]
-                conn.close()
             if album_dict.get('id'):
                 self.loaded_models.get(model_id).update_data(**album_dict)
             elif model_id in self.loaded_models:
@@ -409,12 +387,25 @@ class Navidrome(Base):
             threading.Thread(target=self.getCoverArt, args=(model_id,), daemon=True).start()
 
     def star(self, model_id:str) -> bool:
-        response = self.make_request('star', {'id': model_id})
+        response = None
+        if model := self.loaded_models.get(model_id):
+            if isinstance(model, models.Album):
+                response = self.make_request('star', {'albumId': model_id})
+            elif isinstance(model, models.Artist):
+                response = self.make_request('star', {'artistId': model_id})
+        if not response:
+            response = self.make_request('star', {'id': model_id})
         return response.get('status') == 'ok'
 
     def unstar(self, model_id:str) -> bool:
-        response = self.make_request('unstar', {'id': model_id})
-        print(response)
+        response = None
+        if model := self.loaded_models.get(model_id):
+            if isinstance(model, models.Album):
+                response = self.make_request('unstar', {'albumId': model_id})
+            elif isinstance(model, models.Artist):
+                response = self.make_request('unstar', {'artistId': model_id})
+        if not response:
+            response = self.make_request('unstar', {'id': model_id})
         return response.get('status') == 'ok'
 
     def getPlayQueue(self) -> tuple:
@@ -508,12 +499,8 @@ class Navidrome(Base):
             model['id'] = str(model.get('id', ''))
             if model.get('id') not in self.loaded_models:
                 if self.__gtype_name__ == 'NocturneIntegrationBandcamp':
-                    # TODO remove once Bandcamp implements rating and favorite albums
+                    # TODO remove once Bandcamp implements rating
                     model['userRating'] = self.get_rating(model['id'])
-                    conn, cursor = sql_instance.get_connection(self)
-                    cursor.execute("SELECT id FROM stars")
-                    model['starred'] = model['id'] in [str(r[0]) for r in cursor.fetchall()]
-                    conn.close()
                 self.loaded_models[model.get('id')] = models.Album(**model)
         for model in search_results.get('song', []):
             model['id'] = str(model.get('id', ''))
@@ -854,9 +841,6 @@ class Bandcamp(Navidrome):
     limitations = ('no-downloads', 'no-autoplay')
 
     sqlSchema = {
-        'stars': {
-            'id': 'TEXT PRIMARY KEY'
-        },
         'radios': {
             'id': 'TEXT PRIMARY KEY',
             'name': 'TEXT NOT NULL',
@@ -939,26 +923,6 @@ class Bandcamp(Navidrome):
     def deleteInternetRadioStation(self, model_id:str) -> bool:
         conn, cursor = sql_instance.get_connection(self)
         cursor.execute("DELETE FROM radios WHERE id = ?", (model_id,))
-        conn.commit()
-        conn.close()
-        return True
-
-    def star(self, model_id:str) -> bool:
-        if model := self.loaded_models.get(model_id):
-            if not isinstance(model, models.Album):
-                return super().star(model_id)
-        conn, cursor = sql_instance.get_connection(self)
-        cursor.execute("INSERT OR IGNORE INTO stars (id) VALUES (?)", (model_id,))
-        conn.commit()
-        conn.close()
-        return True
-
-    def unstar(self, model_id:str) -> bool:
-        if model := self.loaded_models.get(model_id):
-            if not isinstance(model, models.Album):
-                return super().unstar(model_id)
-        conn, cursor = sql_instance.get_connection(self)
-        cursor.execute("DELETE FROM stars WHERE id=?", (model_id,))
         conn.commit()
         conn.close()
         return True
@@ -1086,7 +1050,6 @@ class Bandcamp(Navidrome):
     # These are all features missing right now (Bandcamp's server is in beta)
     # [X] Implement ratings
     # [X] Implement radios
-    # [X] Implement favorites (for albums, songs do work)
     # [X] Implement playlists
     # [X] Implement scrobble
 
