@@ -1,10 +1,10 @@
 # navidrome.py
 
 from gi.repository import GLib, GObject, Gdk, Gio
-from . import secret, models, local
+from . import secret, models, local, sql_instance
 from ..constants import get_navidrome_path, get_navidrome_env, CONTEXT_MANAGED_NAVIDROME_SERVER, DOWNLOAD_QUEUE_DIR, DOWNLOADS_DIR, DOWNLOAD_MIME_MAP
 from .base import Base
-import random, threading, subprocess, os, re, logging, time
+import random, threading, subprocess, os, re, logging, time, uuid
 from urllib.parse import urlencode, urlparse
 
 logger = logging.getLogger(__name__)
@@ -184,6 +184,10 @@ class Navidrome(Base):
             if new_id := str(album_dict.get('id', '')):
                 album_dict['id'] = new_id
                 album_ids.append(new_id)
+                if self.__gtype_name__ == 'NocturneIntegrationBandcamp':
+                    # TODO remove once Bandcamp implements rating
+                    album_dict['userRating'] = self.get_rating(new_id)
+
                 if new_id in self.loaded_models:
                     self.loaded_models.get(new_id).update_data(**album_dict)
                 else:
@@ -211,6 +215,9 @@ class Navidrome(Base):
             if new_id := str(artist_dict.get('id', '')):
                 artist_dict['id'] = new_id
                 artist_ids.append(new_id)
+                if self.__gtype_name__ == 'NocturneIntegrationBandcamp':
+                    # TODO remove once Bandcamp implements rating
+                    artist_dict['userRating'] = self.get_rating(new_id)
                 if new_id in self.loaded_models:
                     self.loaded_models.get(new_id).update_data(**artist_dict)
                 else:
@@ -245,6 +252,9 @@ class Navidrome(Base):
             if not isinstance(detail_artist, dict):
                 detail_artist = {}
             artist_dict = {**base_artist, **detail_artist}
+            if self.__gtype_name__ == 'NocturneIntegrationBandcamp':
+                # TODO remove once Bandcamp implements rating
+                artist_dict['userRating'] = self.get_rating(model_id)
             if artist_dict.get('id'):
                 self.loaded_models.get(model_id).update_data(**artist_dict)
             elif model_id in self.loaded_models:
@@ -266,6 +276,9 @@ class Navidrome(Base):
         def update():
             response = self.make_request('getAlbum', {'id': model_id})
             album_dict = response.get('album', {})
+            if self.__gtype_name__ == 'NocturneIntegrationBandcamp':
+                # TODO remove once Bandcamp implements rating
+                album_dict['userRating'] = self.get_rating(model_id)
             if album_dict.get('id'):
                 self.loaded_models.get(model_id).update_data(**album_dict)
             elif model_id in self.loaded_models:
@@ -315,6 +328,11 @@ class Navidrome(Base):
                         'name': song_dict.get('artist')
                     }]
                 gains = song_dict.get('replayGain') or {}
+
+                if self.__gtype_name__ == 'NocturneIntegrationBandcamp':
+                    # TODO remove once Bandcamp implements rating
+                    song_dict['userRating'] = self.get_rating(model_id)
+
                 self.loaded_models.get(model_id).update_data(**song_dict, albumGain=gains.get('albumGain', 0.0), trackGain=gains.get('trackGain', 0.0))
                 threading.Thread(target=self.getCoverArt, args=(model_id,), daemon=True).start()
             elif model_id in self.loaded_models:
@@ -351,6 +369,9 @@ class Navidrome(Base):
             new_id = str(song_dict.get('id', ''))
             if new_id not in self.loaded_models:
                 song_dict['id'] = new_id
+                if self.__gtype_name__ == 'NocturneIntegrationBandcamp':
+                    # TODO remove once Bandcamp implements rating
+                    song_dict['userRating'] = self.get_rating(new_id)
                 self.loaded_models[new_id] = models.Song(**song_dict)
             else:
                 self.verifySong(song_dict.get('id'), force_update=True)
@@ -420,6 +441,9 @@ class Navidrome(Base):
         search_results = response.get('searchResult3')
         for model in search_results.get('artist', []):
             model['id'] = str(model.get('id', ''))
+            if self.__gtype_name__ == 'NocturneIntegrationBandcamp':
+                # TODO remove once Bandcamp implements rating
+                artist_dict['userRating'] = self.get_rating(model['id'])
             if model.get('id') not in self.loaded_models:
                 self.loaded_models[model.get('id')] = models.Artist(**model)
         for model in search_results.get('album', []):
@@ -429,6 +453,9 @@ class Navidrome(Base):
         for model in search_results.get('song', []):
             model['id'] = str(model.get('id', ''))
             if model.get('id') not in self.loaded_models:
+                if self.__gtype_name__ == 'NocturneIntegrationBandcamp':
+                    # TODO remove once Bandcamp implements rating
+                    model['userRating'] = self.get_rating(model.get('id'))
                 self.loaded_models[model.get('id')] = models.Song(**model)
 
         # Playlists
@@ -638,6 +665,9 @@ class Navidrome(Base):
         }).get('song', {})
         song_dict['trackGain'] = song_dict.get('replayGain', {}).get('trackGain') or 0.0
         song_dict['albumGain'] = song_dict.get('replayGain', {}).get('albumGain') or 0.0
+        if self.__gtype_name__ == 'NocturneIntegrationBandcamp':
+            # TODO remove once Bandcamp implements rating
+            song_dict['userRating'] = self.get_rating(model_id)
         return models.SongDetails(**song_dict)
 
     def getServerInformation(self) -> dict:
@@ -751,15 +781,97 @@ class Bandcamp(Navidrome):
         }
     }
     button_metadata = {
-        'title': _("Bandcamp"),
+        'title': _("Bandcamp (Beta)"),
         'subtitle': _("Explore your online library")
     }
 
     url = GObject.Property(type=str, default="https://bandcamp.com/api/subsonic")
     limitations = ('no-downloads',)
 
+    sqlSchema = {
+        'radios': {
+            'id': 'TEXT PRIMARY KEY',
+            'name': 'TEXT NOT NULL',
+            'stream_url': 'TEXT NOT NULL'
+        },
+        'ratings': {
+            'id': 'TEXT PRIMARY KEY',
+            'rating': 'INTEGER DEFAULT 1'
+        }
+    }
+
     def getServerInformation(self) -> dict:
         server_info = super().getServerInformation()
         server_info['link'] = 'https://bandcamp.com'
         return server_info
 
+    def get_rating(self, model_id) -> int: # For internal use
+        conn, cursor = sql_instance.get_connection(self)
+        cursor.execute("SELECT rating FROM ratings WHERE id = ?", (model_id,))
+        result = cursor.fetchone()
+        conn.close()
+        return result[0] if result else 0
+
+    def setRating(self, model_id:str, rating:int=0) -> bool:
+        conn, cursor = sql_instance.get_connection(self)
+        if rating == 0:
+            cursor.execute("DELETE FROM ratings WHERE id = ?", (model_id,))
+        else:
+            query = """
+            INSERT INTO ratings (id, rating)
+            VALUES (?, ?)
+            ON CONFLICT (id) DO UPDATE SET
+                rating = excluded.rating
+            """
+            cursor.execute(query, (model_id, rating))
+        conn.commit()
+        conn.close()
+        return True
+
+    def getInternetRadioStations(self) -> list:
+        conn, cursor = sql_instance.get_connection(self)
+        cursor.execute("SELECT id, name, stream_url FROM radios")
+        radio_ids = []
+        for radio in cursor.fetchall():
+            radio_ids.append(radio[0])
+            self.loaded_models[radio[0]] = models.Song(
+                id=radio[0],
+                title=radio[1],
+                radioStreamUrl=radio[2],
+                duration=-1
+            )
+        conn.close()
+        return radio_ids
+
+    def createInternetRadioStation(self, name:str, radioStreamUrl:str) -> bool:
+        radio_id = 'RADIO:{}'.format(str(uuid.uuid4()))
+        return self.updateInternetRadioStation(radio_id, name, radioStreamUrl)
+
+    def updateInternetRadioStation(self, model_id:str, name:str, radioStreamUrl:str) -> bool:
+        conn, cursor = sql_instance.get_connection(self)
+        query = """
+        INSERT INTO radios (id, name, stream_url)
+        VALUES (?, ?, ?)
+        ON CONFLICT (id) DO UPDATE SET
+            name = excluded.name,
+            stream_url = excluded.stream_url
+        """
+        cursor.execute(query, (model_id, name, radioStreamUrl))
+        conn.commit()
+        conn.close()
+        return True
+
+    def deleteInternetRadioStation(self, model_id:str) -> bool:
+        conn, cursor = sql_instance.get_connection(self)
+        cursor.execute("DELETE FROM radios WHERE id = ?", (model_id,))
+        conn.commit()
+        conn.close()
+        return True
+
+    #TODO
+    # These are all features missing right now (Bandcamp's server is in beta)
+    # [X] Implement ratings
+    # [X] Implement radios
+    # [] Implement playlists
+    # [] Implement auto queue (missing getSimilarSongs and getRandomSongs)
+    # [] Check if scrobble works
