@@ -138,8 +138,8 @@ class PlayingControlPage(Adw.NavigationPage):
         self.positive_progress_el.set_visible(not radioStreamUrl)
         self.negative_progress_el.set_visible(not radioStreamUrl)
         self.progress_el.set_visible(not radioStreamUrl)
-        self.rating_button.set_visible(self.rating_button.get_visible() and not radioStreamUrl)
-        self.star_el.set_visible(self.star_el.get_visible() and not radioStreamUrl)
+        self.rating_button.set_visible(not radioStreamUrl)
+        self.star_el.set_visible(not radioStreamUrl)
 
         homepage_url = ""
         if radioStreamUrl:

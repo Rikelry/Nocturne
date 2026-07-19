@@ -90,8 +90,7 @@ class Navidrome(Base):
                             line = line.decode('utf-8')
                             if line and not line.startswith('#'):
                                 return line.strip()
-            except Exception as e:
-                print(e)
+            except:
                 pass
             return radioStreamUrl
         elif model.get_property('isExternalFile'):
