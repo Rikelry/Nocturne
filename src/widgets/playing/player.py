@@ -311,16 +311,24 @@ class Player(EventAdapter):
             print("Failed to publish MPRIS:", e)
         GLib.timeout_add(64, self.update_stream_progress)
 
-        self.song_connections = {
-            'songId': '',
-            'connections': []
-        }
+        self.last_song = ''
         self.pause_next_change = False
         self.last_gst_state_type = -1
         self.discord_rpc = DiscordRPC(self)
         self.settings.connect('changed::discord-rpc-enabled', lambda *_: self.discord_rpc.update())
         self.settings.connect('changed::discord-rpc-client-id', lambda *_: self.discord_rpc.update())
         integration = get_current_integration()
+        # Connect to Current Song
+        connections = {
+            'title': self.update_title,
+            'radioStreamUrl': self.update_radioStreamUrl,
+            'artists': self.update_artists,
+            'trackGain': self.update_trackGain,
+            'albumGain': self.update_albumGain,
+            'gdkPaintable': self.update_coverArt
+        }
+        for parameter, callback in connections.items():
+            integration.connect_to_current_song(parameter, callback)
         integration.connect_to_model('currentSong', 'songId', self.song_changed)
         integration.connect_to_model('currentSong', 'songId', lambda *_: self.discord_rpc.update())
         integration.connect_to_model('currentSong', 'displaySongTitle', lambda *_: self.discord_rpc.update())
@@ -570,64 +578,49 @@ class Player(EventAdapter):
 
         GLib.idle_add(self.application.css_provider.load_from_string, css)
 
+    def update_title(self, title:str):
+        integration = get_current_integration()
+        integration.loaded_models.get('currentSong').set_property('displaySongTitle', title)
+
+    def update_radioStreamUrl(self, radioStreamUrl:str):
+        if radioStreamUrl:
+            integration = get_current_integration()
+            integration.loaded_models.get('currentSong').set_property('displaySongArtist', urlparse(radioStreamUrl).netloc.capitalize())
+
+    def update_artists(self, artists:list):
+        integration = get_current_integration()
+        integration.loaded_models.get('currentSong').set_property('displaySongArtist', artists[0].get('name') if len(artists) > 0 else '')
+
+    def update_trackGain(self, trackGain:float):
+        if self.settings.get_value('use-gain').unpack():
+            self.rg_volume.set_property('fallback-gain', trackGain)
+            self.rg_volume.set_property('album-mode', False)
+
+    def update_albumGain(self, albumGain:float):
+        if self.settings.get_value('use-gain').unpack() and self.rg_volume.get_property('fallback-gain') == 0.0:
+            self.rg_volume.set_property('fallback-gain', albumGain)
+            self.rg_volume.set_property('album-mode', True)
+
+    def update_coverArt(self, paintable):
+        if paintable:
+            if raw_bytes := paintable.save_to_png_bytes().get_data():
+                threading.Thread(target=self.update_palette, args=(raw_bytes,), daemon=True).start()
+
     def song_changed(self, song_id:str):
         integration = get_current_integration()
 
-        def update_default_metadata(songId):
-            if model := integration.loaded_models.get(songId):
-                # Disconnect From Previous Song
-                if previousSong := integration.loaded_models.get(self.song_connections.get('songId', '')):
-                    for connection_id in self.song_connections.get('connections', []).copy():
-                        try:
-                            GLib.idle_add(previousSong.disconnect, connection_id)
-                        except:
-                            pass
-
-                connections = {
-                    'title': lambda title: integration.loaded_models.get('currentSong').set_property('displaySongTitle', title)
-                }
-                if model.get_property('radioStreamUrl'): # is radio
-                    connections['radioStreamUrl'] = lambda streamUrl: integration.loaded_models.get('currentSong').set_property('displaySongArtist', urlparse(streamUrl).netloc.capitalize())
-                else:
-                    connections['artists'] = lambda artists: integration.loaded_models.get('currentSong').set_property('displaySongArtist', artists[0].get('name') if len(artists) > 0 else '')
-                self.song_connections['connections'] = []
-                self.song_connections['songId'] = songId
-                for property_name, cb in connections.items():
-                    if connection_id := integration.connect_to_model(song_id, property_name, cb):
-                        self.song_connections['connections'].append(connection_id)
-
-                new_gain = 0.0
-                album_mode = False
-                if self.settings.get_value('use-gain').unpack():
-                    new_gain = model.get_property('trackGain')
-                    if last_model := integration.loaded_models.get(self.song_connections.get('songId')):
-                        if last_model.get_property('albumId') == model.get_property('albumId'):
-                            new_gain = model.get_property('albumGain')
-                            album_mode = True
-                self.song_connections['songId'] = songId
-                GLib.idle_add(self.rg_volume.set_property, "fallback-gain", new_gain)
-                GLib.idle_add(self.rg_volume.set_property, "album-mode", album_mode)
-
-                if paintable := integration.getCoverArt(songId):
-                    if raw_bytes := paintable.save_to_png_bytes().get_data():
-                        threading.Thread(target=self.update_palette, args=(raw_bytes,), daemon=True).start()
-
-                if model := integration.loaded_models.get(songId):
-                    if not model.get_property('duration'):
-                        self.gst.get_state(Gst.CLOCK_TIME_NONE)
-                        success, duration = self.gst.query_duration(Gst.Format.TIME)
-                        if success:
-                            model.set_property('duration', duration / Gst.SECOND)
-
         if song_id:
-            if song_id != self.song_connections.get('songId'):
+            if song_id != self.last_song:
+                self.last_song = song_id
+                threading.Thread(target=integration.scrobble, args=(song_id,), kwargs={'submission': False}, daemon=True).start()
+
+                # Volume warning
                 if self.gst.get_property('volume') == 0:
                     if active_window := self.application.props.active_window:
                         active_window.toast_overlay.add_toast(Adw.Toast(
                             title=_("Warning: Song changed but volume is set to 0")
                         ))
-                threading.Thread(target=integration.scrobble, args=(song_id,), kwargs={'submission': False}, daemon=True).start()
-                threading.Thread(target=update_default_metadata, args=(song_id,), daemon=True).start()
+
                 if stream_url := integration.get_stream_url(song_id):
                     self.gst.set_state(Gst.State.READY)
                     self.gst.set_property('uri', stream_url)
@@ -636,6 +629,14 @@ class Player(EventAdapter):
                         self.pause_next_change = False
                     else:
                         self.gst.set_state(Gst.State.PLAYING)
+
+                    # Fix duration
+                    if model := integration.loaded_models.get(song_id):
+                        if not model.get_property('duration'):
+                            self.gst.get_state(Gst.CLOCK_TIME_NONE)
+                            success, duration = self.gst.query_duration(Gst.Format.TIME)
+                            if success:
+                                model.set_property('duration', duration / Gst.SECOND)
                 else:
                     self.gst.set_state(Gst.State.NULL)
         else:

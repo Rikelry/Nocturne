@@ -22,11 +22,6 @@ class PopoutWindow(Adw.ApplicationWindow):
 
     fullscreen_btn = None
 
-    song_connections = {
-        'songId': '',
-        'connections': []
-    }
-
     def __init__(self, application, fullscreened):
         super().__init__(
             application=application,

@@ -20,7 +20,7 @@ class PlayingFooter(Gtk.Overlay):
     def setup(self):
         # Called after login
         integration = get_current_integration()
-        integration.connect_to_model('currentSong', 'songId', self.song_changed)
+        integration.connect_to_model('currentSong', 'songId', lambda *_: self.update_progress_el_visibility())
         integration.connect_to_model('currentSong', 'positionSeconds', self.position_changed)
         integration.connect_to_model('currentSong', 'buttonState', self.state_stack_el.set_visible_child_name)
         integration.connect_to_model('currentSong', 'displaySongTitle', self.display_title_changed)
@@ -28,6 +28,13 @@ class PlayingFooter(Gtk.Overlay):
         self.settings = Gio.Settings(schema_id="com.jeffser.Nocturne")
         self.settings.connect("changed::use-big-footer", self.big_mode_toggled)
         self.big_mode_toggled(self.settings, 'use-big-footer')
+
+        connections = {
+            'duration': self.progress_el.get_adjustment().set_upper,
+            'gdkPaintable': self.update_coverArt
+        }
+        for parameter, callback in connections.items():
+            integration.connect_to_current_song(parameter, callback)
 
     def big_mode_toggled(self, settings, key):
         if self.get_property('forceHugeMode'):
@@ -59,13 +66,6 @@ class PlayingFooter(Gtk.Overlay):
             isRadio = bool(model.get_property('radioStreamUrl'))
         self.progress_el.set_visible(not isRadio and (mode_status or force_status))
 
-    def song_changed(self, song_id:str):
-        self.update_progress_el_visibility()
-        integration = get_current_integration()
-        if song := integration.loaded_models.get(song_id):
-            self.progress_el.get_adjustment().set_upper(song.get_property('duration'))
-            threading.Thread(target=self.update_cover_art, daemon=True).start()
-
     def display_title_changed(self, display_title:str):
         self.title_el.set_label(display_title)
 
@@ -80,16 +80,13 @@ class PlayingFooter(Gtk.Overlay):
             self.ro_progress_el.set_fraction(0 if duration == 0 else positionSeconds / duration)
             self.progress_el.get_adjustment().set_value(positionSeconds)
 
-    def update_cover_art(self):
-        integration = get_current_integration()
-        song_id = integration.loaded_models.get('currentSong').get_property('songId')
-        if model := integration.loaded_models.get(song_id):
-            if paintable := integration.getCoverArt(song_id):
-                GLib.idle_add(self.cover_el.set_from_paintable, paintable)
-                GLib.idle_add(self.cover_el.set_pixel_size, self.cover_el.get_size_request()[0])
-            else:
-                GLib.idle_add(self.cover_el.set_from_icon_name, 'music-note-symbolic')
-                GLib.idle_add(self.cover_el.set_pixel_size, -1)
+    def update_coverArt(self, paintable):
+        if paintable:
+            GLib.idle_add(self.cover_el.set_from_paintable, paintable)
+            GLib.idle_add(self.cover_el.set_pixel_size, self.cover_el.get_size_request()[0])
+        else:
+            GLib.idle_add(self.cover_el.set_from_icon_name, 'music-note-symbolic')
+            GLib.idle_add(self.cover_el.set_pixel_size, -1)
 
     @Gtk.Template.Callback()
     def progress_bar_changed(self, scale_el, scroll_type, value):

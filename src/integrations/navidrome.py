@@ -57,6 +57,7 @@ class Navidrome(Base):
             )
         action_url = self.get_url(action)
         request_id = '{}?{}'.format(action_url, urlencode(params))
+        return request_job(action_url,params)
         return self.cache_manager.get_result(request_id, request_job, action_url, params)
 
     def make_request(self, action:str, params:dict={}) -> dict:

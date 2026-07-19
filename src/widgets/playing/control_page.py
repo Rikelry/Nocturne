@@ -29,16 +29,11 @@ class PlayingControlPage(Adw.NavigationPage):
     rating_button = Gtk.Template.Child()
     rating_container = Gtk.Template.Child()
     breakpoint_state = False
-    song_connections = {
-        'songId': '',
-        'connections': []
-    }
 
     def setup(self):
         integration = get_current_integration()
         integration.connect_to_model('currentSong', 'positionSeconds', self.update_position)
         integration.connect_to_model('currentSong', 'buttonState', self.state_stack_el.set_visible_child_name)
-        integration.connect_to_model('currentSong', 'songId', self.song_changed)
         integration.connect_to_model('currentSong', 'displaySongTitle', self.display_title_changed)
         integration.connect_to_model('currentSong', 'displaySongArtist', self.display_artist_changed)
         self.cover_art_el.setup()
@@ -49,6 +44,20 @@ class PlayingControlPage(Adw.NavigationPage):
                 GLib.idle_add(stack2.get_parent().set_overflow, Gtk.Overflow.HIDDEN)
         if extra_widget := self.get_property('extra-widget'):
             self.main_container.prepend(extra_widget)
+
+        # Connect to Current Song
+        connections = {
+            'radioStreamUrl': self.update_radioStreamUrl,
+            'artistId': self.update_artistId,
+            'album': self.update_album,
+            'albumId': self.update_albumId,
+            'isExternalFile': self.update_isExternalFile,
+            'duration': self.progress_el.get_adjustment().set_upper,
+            'userRating': self.update_userRating,
+            'starred': self.update_starred
+        }
+        for parameter, callback in connections.items():
+            integration.connect_to_current_song(parameter, callback)
 
     def update_position(self, positionSeconds:int):
         integration = get_current_integration()
@@ -192,41 +201,4 @@ class PlayingControlPage(Adw.NavigationPage):
         self.radio_homepage_el.get_child().set_label(display_artist)
         self.artist_el.get_child().set_label(display_artist)
         self.artist_el.set_tooltip_text(display_artist)
-
-    def song_changed(self, song_id:str):
-        def run():
-            integration = get_current_integration()
-            integration.verifySong(song_id, use_threading=False)
-            if song_id and song_id in integration.loaded_models:
-                # Set Defaults
-                GLib.idle_add(self.rating_container.set_visible, True)
-                GLib.idle_add(self.star_el.set_visible, True)
-                GLib.idle_add(self.star_el.set_action_target_value, GLib.Variant.new_string(song_id))
-
-                # Disconnect From Previous Song
-                if previousSong := integration.loaded_models.get(self.song_connections.get('songId', '')):
-                    for connection_id in self.song_connections.get('connections', []).copy():
-                        try:
-                            GLib.idle_add(previousSong.disconnect, connection_id)
-                        except:
-                            pass
-
-                # Connect UI
-                connections = {
-                    'radioStreamUrl': self.update_radioStreamUrl,
-                    'artistId': self.update_artistId,
-                    'album': self.update_album,
-                    'albumId': self.update_albumId,
-                    'isExternalFile': self.update_isExternalFile,
-                    'duration': self.progress_el.get_adjustment().set_upper,
-                    'userRating': self.update_userRating,
-                    'starred': self.update_starred
-                }
-                self.song_connections['connections'] = []
-                self.song_connections['songId'] = song_id
-                for property_name, cb in connections.items():
-                    if connection_id := integration.connect_to_model(song_id, property_name, cb):
-                        self.song_connections['connections'].append(connection_id)
-
-        threading.Thread(target=run, daemon=True).start()
 

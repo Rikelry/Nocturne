@@ -112,6 +112,41 @@ class Base(GObject.Object):
     # Epic custom lightweight cache manager
     cache_manager = CacheManager()
 
+    # For usage in connect_to_current_song
+    song_connections = {
+        'songId': '',
+        'connectionId': '',
+        'callbacks': {} # param : [list of callbacks]
+    }
+
+    def __init__(self, *args, **kwargs):
+        # do not change
+        super().__init__(*args, **kwargs)
+        self.loaded_models.get('currentSong').connect('notify::songId', lambda *_: threading.Thread(target=self.song_changed).start())
+
+    def current_song_property_changed(self, param:str, value:object):
+        # do not change
+        for callback in self.song_connections.get('callbacks', {}).get(param, []):
+            GLib.idle_add(callback, value)
+
+    def song_changed(self):
+        # do not change
+        if previousSong := self.loaded_models.get(self.song_connections.get('songId', '')):
+            try:
+                GLib.idle_add(previousSong.disconnect, self.song_connections.get('connectionId', ''))
+            except:
+                pass
+
+        if currentSongId := self.loaded_models.get('currentSong').get_property('songId'):
+            if currentSongId not in self.loaded_models:
+                self.verifySong(currentSongId, use_threading=False)
+
+            if currentSongModel := self.loaded_models.get(currentSongId):
+                self.song_connections['songId'] = currentSongId
+                self.song_connections['connectionId'] = currentSongModel.connect('notify', lambda item, gparam: self.current_song_property_changed(gparam.get_name(), item.get_property(gparam.get_name())))
+                for param in list(self.song_connections.get('callbacks', {})):
+                    self.current_song_property_changed(param, currentSongModel.get_property(param))
+
     def open_json(self, filename:str, fallback={}) -> dict:
         # please use sql when possible
         try:
@@ -148,6 +183,17 @@ class Base(GObject.Object):
     def check_if_ready(self, row) -> bool:
         # gets called to see if it is ready to show login page
         return True
+
+    def connect_to_current_song(self, parameter:str, callback:callable):
+        # do not modify this function, it works as is in any instance
+        if parameter in list(self.song_connections.get('callbacks')):
+            self.song_connections['callbacks'][parameter].append(callback)
+        else:
+            self.song_connections['callbacks'][parameter] = [callback]
+
+        if current_song_id := self.loaded_models.get('currentSong'):
+            if current_song_model := self.loaded_models.get(current_song_id):
+                GLib.idle_add(callback, current_song_model.get_property(parameter))
 
     def connect_to_model(self, model_id:str, parameter:str, callback:callable) -> str:
         # do not modify this function, it works as is in any instance
