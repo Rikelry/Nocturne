@@ -181,32 +181,43 @@ class Navidrome(Base):
     def getAlbumList(self, list_type:str="recent", size:int=10, offset:int=0) -> list:
         # returns a list of IDs
 
-        if self.__gtype_name__ == 'NocturneIntegrationBandcamp' and list_type in ('frequent', 'recent'):
-            # TODO remove once Bandcamp implements scrobble
-            album_views = {}
-            conn, cursor = sql_instance.get_connection(self)
-            cursor.execute("SELECT album_id, plays, last_play FROM scrobble")
-            print("SCROBBLE")
-            for row in cursor.fetchall():
-                print("!!!!!!!!!!!", row)
-                album_id = row[0]
-                plays = row[1]
-                last_play = row[2]
+        if self.__gtype_name__ == 'NocturneIntegrationBandcamp':
+            if list_type == 'starred':
+                conn, cursor = sql_instance.get_connection(self)
+                cursor.execute("SELECT id FROM stars")
+                all_stars = [str(r[0]) for r in cursor.fetchall()]
+                conn.close()
+                album_ids = []
+                for model_id in all_stars:
+                    if model := self.loaded_models.get(model_id):
+                        if isinstance(model, models.Album):
+                            album_ids.append(model_id)
+                return album_ids
 
-                if album_id in album_views:
-                    album_views[album_id]['plays'] += plays
-                    album_views[album_id]['last_play'] = max(album_views.get(album_id).get('last_play'), last_play)
+            elif list_type in ('frequent', 'recent'):
+                # TODO remove once Bandcamp implements scrobble
+                album_views = {}
+                conn, cursor = sql_instance.get_connection(self)
+                cursor.execute("SELECT album_id, plays, last_play FROM scrobble")
+                for row in cursor.fetchall():
+                    album_id = row[0]
+                    plays = row[1]
+                    last_play = row[2]
+
+                    if album_id in album_views:
+                        album_views[album_id]['plays'] += plays
+                        album_views[album_id]['last_play'] = max(album_views.get(album_id).get('last_play'), last_play)
+                    else:
+                        album_views[album_id] = {
+                            'plays': plays,
+                            'last_play': last_play
+                        }
+                conn.close()
+                if list_type == "frequent":
+                    album_list = sorted(album_views, key=lambda x: album_views.get(x).get('plays'), reverse=True)
                 else:
-                    album_views[album_id] = {
-                        'plays': plays,
-                        'last_play': last_play
-                    }
-            conn.close()
-            if list_type == "frequent":
-                album_list = sorted(album_views, key=lambda x: album_views.get(x).get('plays'), reverse=True)
-            else:
-                album_list = sorted(album_views, key=lambda x: album_views.get(x).get('last_play'), reverse=True)
-            return [model_id for model_id in album_list if model_id in self.loaded_models][offset:size+offset]
+                    album_list = sorted(album_views, key=lambda x: album_views.get(x).get('last_play'), reverse=True)
+                return [model_id for model_id in album_list if model_id in self.loaded_models][offset:size+offset]
 
         params = {
             'type': list_type,
