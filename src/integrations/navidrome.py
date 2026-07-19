@@ -42,7 +42,7 @@ class Navidrome(Base):
         return params
 
     def get_url(self, action:str) -> str:
-        return '{}/rest/{}'.format(self.get_property('url').strip('/'), action)
+        return '{}/rest/{}'.format(self.get_property('url').strip('/'), action) + ('.view' if self.__gtype_name__ == 'NocturneIntegrationBandcamp' else '')
 
     def send_request(self, action:str, params:dict={}):
         def request_job(url, parameters) -> tuple:
@@ -180,33 +180,6 @@ class Navidrome(Base):
 
     def getAlbumList(self, list_type:str="recent", size:int=10, offset:int=0) -> list:
         # returns a list of IDs
-
-        if self.__gtype_name__ == 'NocturneIntegrationBandcamp':
-            if list_type in ('frequent', 'recent'):
-                # TODO remove once Bandcamp implements scrobble
-                album_views = {}
-                conn, cursor = sql_instance.get_connection(self)
-                cursor.execute("SELECT album_id, plays, last_play FROM scrobble")
-                for row in cursor.fetchall():
-                    album_id = row[0]
-                    plays = row[1]
-                    last_play = row[2]
-
-                    if album_id in album_views:
-                        album_views[album_id]['plays'] += plays
-                        album_views[album_id]['last_play'] = max(album_views.get(album_id).get('last_play'), last_play)
-                    else:
-                        album_views[album_id] = {
-                            'plays': plays,
-                            'last_play': last_play
-                        }
-                conn.close()
-                if list_type == "frequent":
-                    album_list = sorted(album_views, key=lambda x: album_views.get(x).get('plays'), reverse=True)
-                else:
-                    album_list = sorted(album_views, key=lambda x: album_views.get(x).get('last_play'), reverse=True)
-                return [model_id for model_id in album_list if model_id in self.loaded_models][offset:size+offset]
-
         params = {
             'type': list_type,
             'size': size,
@@ -633,12 +606,20 @@ class Navidrome(Base):
     def createPlaylist(self, name:str=None, playlistId:str=None, songId:list=[]) -> str:
         # returns id
         # if playlistId is added then the name is updated
-        response = self.make_request('createPlaylist', {
-            'playlistId': playlistId,
-            'name': name,
-            'songId': songId
-        })
-        return response.get('playlist', {}).get('id')
+        if playlistId:
+            response = self.make_request('updatePlaylist', {
+                'playlistId': playlistId,
+                'name': name
+            })
+            if response.get('status') == 'ok':
+                return playlistId
+        else:
+            response = self.make_request('createPlaylist', {
+                'name': name,
+                'songId': songId
+            })
+            return response.get('playlist', {}).get('id')
+        return ''
 
     def updatePlaylist(self, playlistId:str, songIdToAdd:list=[], songIndexToRemove:list=[]) -> bool:
         # returns true if ok
@@ -679,10 +660,12 @@ class Navidrome(Base):
     def downloadSong(self, model_id:str, file_title:str, progress_callback:callable):
         params = {
             **self.get_base_params(),
-            'id': model_id
+            'id': model_id,
+            'maxBitRate': 0,
+            'format': 'raw'
         }
         try:
-            with self.session.get(self.get_url('download'), params=params, stream=True) as r:
+            with self.session.get(self.get_url('stream'), params=params, stream=True) as r:
                 r.raise_for_status()
                 total_size = int(r.headers.get('content-length', 0))
                 downloaded_size = 0
@@ -838,7 +821,7 @@ class Bandcamp(Navidrome):
     }
 
     url = GObject.Property(type=str, default="https://bandcamp.com/api/subsonic")
-    limitations = ('no-downloads', 'no-autoplay')
+    limitations = ('no-autoplay',)
 
     sqlSchema = {
         'radios': {
@@ -849,13 +832,6 @@ class Bandcamp(Navidrome):
         'ratings': {
             'id': 'TEXT PRIMARY KEY',
             'rating': 'INTEGER DEFAULT 1'
-        },
-        'scrobble': {
-            'id': 'TEXT PRIMARY KEY',
-            'plays': 'INTEGER DEFAULT 1',
-            'last_play': 'INTEGER DEFAULT 0',
-            'album_id': 'TEXT NOT NULL',
-            'artist_id': 'TEXT NOT NULL'
         }
     }
 
@@ -927,129 +903,8 @@ class Bandcamp(Navidrome):
         conn.close()
         return True
 
-    def verifyPlaylist(self, model_id:str, force_update:bool=False, use_threading:bool=True):
-        if model := self.loaded_models.get(model_id):
-            if entries := model.get_property('entry'):
-                threading.Thread(target=self.getCoverArt, args=(entries[0].get('id'),), daemon=True).start()
-
-    def createPlaylist(self, name:str=None, playlistId:str=None, songId:list=[]) -> str:
-        playlist_dict = self.open_json('playlists.json')
-
-        playlistId = playlistId or 'PLAYLIST:{}'.format(str(uuid.uuid4()))
-
-        playlist_dict[playlistId] = {
-            'name': name,
-            'songId': songId
-        }
-
-        path_str = ""
-        if len(songId) > 0:
-            if model := self.loaded_models.get(songId[0]):
-                path_str = model.get_property('path')
-
-        self.loaded_models[playlistId] = models.Playlist(
-            id=playlistId,
-            name=name,
-            songCount=len(songId),
-            entry=[{'id': model_id} for model_id in songId],
-            coverArt = path_str
-        )
-        self.save_json('playlists.json', playlist_dict)
-        return playlistId
-
-    def updatePlaylist(self, playlistId:str, songIdToAdd:list=[], songIndexToRemove:list=[]) -> bool:
-        playlist_dict = self.open_json('playlists.json')
-
-        if playlistId in playlist_dict:
-            songs = playlist_dict.get(playlistId).get('songId')
-            for index in songIndexToRemove:
-                songs.pop(int(index))
-            songs.extend(songIdToAdd)
-            playlist_dict[playlistId]['songId'] = songs
-
-            if model := self.loaded_models.get(playlistId):
-                songId = playlist_dict.get(playlistId).get('songId')
-                model.set_property('songCount', len(songId))
-                model.set_property('entry', [{'id': model_id} for model_id in songId])
-                path_str = ""
-                if len(songId) > 0:
-                    if model := self.loaded_models.get(songId[0]):
-                        path_str = model.get_property('path')
-                model.set_property('coverArt', path_str)
-
-        self.save_json('playlists.json', playlist_dict)
-        return True
-
-    def deletePlaylist(self, model_id:str) -> bool:
-        playlist_dict = self.open_json('playlists.json')
-        if model_id in playlist_dict:
-            del playlist_dict[model_id]
-        self.save_json('playlists.json', playlist_dict)
-        return True
-
-    def getPlaylists(self) -> list:
-        playlist_dict = self.open_json('playlists.json')
-        playlist_ids = []
-        for playlist_id, playlist in playlist_dict.items():
-            playlist_ids.append(playlist_id)
-            if playlist_id not in self.loaded_models:
-                path_str = ""
-                if len(playlist.get('songId', [])) > 0:
-                    if model := self.loaded_models.get(playlist.get('songId')[0]):
-                        path_str = model.get_property('path')
-
-                self.loaded_models[playlist_id] = models.Playlist(
-                    id=playlist_id,
-                    name=playlist.get('name'),
-                    songCount=len(playlist.get('songId', [])),
-                    entry=[{'id': model_id} for model_id in playlist.get('songId', [])],
-                    coverArt = path_str
-                )
-        return playlist_ids
-
-    def scrobble(self, model_id:str, submission:bool=True):
-        if not model_id:
-            return
-        if model := self.loaded_models.get(model_id):
-            if model.get_property('isExternalFile') or model.get_property('radioStreamUrl'):
-                return
-            if submission:
-                print(model.title, model.albumId)
-                conn, cursor = sql_instance.get_connection(self)
-                query = """
-                INSERT INTO scrobble (id, plays, last_play, album_id, artist_id)
-                VALUES (?, 1, ?, ?, ?)
-                ON CONFLICT (id) DO UPDATE SET
-                    plays = plays + 1,
-                    last_play = excluded.last_play,
-                    album_id = excluded.album_id,
-                    artist_id = excluded.artist_id
-                """
-                cursor.execute(query, (model_id, int(time.time()), model.get_property('albumId'), model.get_property('artistId')))
-                conn.commit()
-                conn.close()
-        super().scrobble(model_id, submission=submission)
-
-    def getTopSongs(self, artist_id:str, count:int=10) -> list:
-        artist_scrobbles = {}
-        conn, cursor = sql_instance.get_connection(self)
-        cursor.execute("SELECT id, plays, artist_id FROM scrobble")
-        for song in cursor.fetchall():
-            song_id = song[0]
-            plays = song[1]
-            artist = song[2]
-            if not artist:
-                if model := self.loaded_models.get(song_id):
-                    artist = model.get_property('artistId')
-            if artist == artist_id:
-                artist_scrobbles[song_id] = plays
-        conn.close()
-        return sorted(artist_scrobbles, key=artist_scrobbles.get, reverse=True)[:count]
-
     #TODO
     # These are all features missing right now (Bandcamp's server is in beta)
     # [X] Implement ratings
     # [X] Implement radios
-    # [X] Implement playlists
-    # [X] Implement scrobble
 
