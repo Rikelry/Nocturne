@@ -44,7 +44,8 @@ class Jellyfin(Base):
 
     def get_base_header(self) -> dict:
         headers = {
-            "Authorization": self.AUTH_HEADER
+            "Authorization": self.AUTH_HEADER,
+            "Accept": "application/json"
         }
         if token := self.get_property('accessToken'):
             headers["Authorization"] += ', Token="{}"'.format(token)
@@ -56,17 +57,13 @@ class Jellyfin(Base):
 
     def make_request(self, action:str, json:dict={}, params:dict={}, mode:str="GET", action_keys:dict={}) -> dict:
         def request_job(url):
-            headers = {
-                **self.get_base_header(),
-                "Accept": "application/json"
-            }
             try:
                 if mode == 'GET':
                     response = self.session.get(
                         url,
                         params=params,
                         json=json,
-                        headers=headers,
+                        headers=self.get_base_header(),
                         verify=not self.get_property('trustServer')
                     )
                 elif mode == 'POST':
@@ -74,7 +71,7 @@ class Jellyfin(Base):
                         url,
                         params=params,
                         json=json,
-                        headers=headers,
+                        headers=self.get_base_header(),
                         verify=not self.get_property('trustServer')
                     )
                 elif mode == 'DELETE':
@@ -82,7 +79,7 @@ class Jellyfin(Base):
                         url,
                         params=params,
                         json=json,
-                        headers=headers,
+                        headers=self.get_base_header(),
                         verify=not self.get_property('trustServer')
                     )
                 elif mode == 'RAWGET':
@@ -91,7 +88,7 @@ class Jellyfin(Base):
                         self.get_url(action, **action_keys),
                         params=params,
                         json=json,
-                        headers=headers,
+                        headers=self.get_base_header(),
                         verify=not self.get_property('trustServer')
                     )
                     return response.status_code in (200, 201), response
@@ -991,12 +988,8 @@ class Jellyfin(Base):
         return [song.get('Id') for song in songs if song.get('Id')]
 
     def downloadSong(self, model_id:str, file_title:str, progress_callback:callable):
-        headers = {
-            **self.get_base_header(),
-            "Accept": "application/json"
-        }
         try:
-            with self.session.get(self.get_url('Items/{id}/Download', id=model_id), headers=headers, stream=True) as r:
+            with self.session.get(self.get_url('Items/{id}/Download', id=model_id), headers=self.get_base_header(), stream=True) as r:
                 r.raise_for_status()
                 total_size = int(r.headers.get('content-length', 0))
                 downloaded_size = 0
