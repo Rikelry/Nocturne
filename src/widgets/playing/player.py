@@ -622,28 +622,29 @@ class Player(EventAdapter):
                         ))
 
                 def update_stream_url(stream_url):
-                    # Call with GLib.idle_add
-                    self.gst.set_state(Gst.State.READY)
-                    self.gst.set_property('uri', stream_url)
-                    if self.pause_next_change:
-                        self.gst.set_state(Gst.State.PAUSED)
-                        self.pause_next_change = False
-                    else:
-                        self.gst.set_state(Gst.State.PLAYING)
+                    if stream_url:
+                        # Call with GLib.idle_add
+                        self.gst.set_state(Gst.State.READY)
+                        self.gst.set_property('uri', stream_url)
+                        if self.pause_next_change:
+                            self.gst.set_state(Gst.State.PAUSED)
+                            self.pause_next_change = False
+                        else:
+                            self.gst.set_state(Gst.State.PLAYING)
 
-                    # Fix duration
-                    if model := integration.loaded_models.get(song_id):
-                        if not model.get_property('duration'):
-                            self.gst.get_state(Gst.CLOCK_TIME_NONE)
-                            success, duration = self.gst.query_duration(Gst.Format.TIME)
-                            if success:
-                                model.set_property('duration', duration / Gst.SECOND)
+                        # Fix duration
+                        if model := integration.loaded_models.get(song_id):
+                            if not model.get_property('duration'):
+                                self.gst.get_state(Gst.CLOCK_TIME_NONE)
+                                success, duration = self.gst.query_duration(Gst.Format.TIME)
+                                if success:
+                                    model.set_property('duration', duration / Gst.SECOND)
+                    else:
+                        self.gst.set_state(Gst.State.NULL)
 
                 def obtain_stream_url():
-                    if stream_url := integration.get_stream_url(song_id):
-                        GLib.idle_add(update_stream_url, stream_url)
-                    else:
-                        GLib.idle_add(lambda: self.gst.set_state(Gst.State.NULL) and False)
+                    GLib.idle_add(update_stream_url, integration.get_stream_url(song_id))
+
                 threading.Thread(target=obtain_stream_url).start()
         else:
             self.gst.set_state(Gst.State.NULL)
