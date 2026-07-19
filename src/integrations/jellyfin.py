@@ -894,11 +894,11 @@ class Jellyfin(Base):
 
     def createPlaylist(self, name:str=None, playlistId:str=None, songId:list=[]) -> str:
         if playlistId:
-            return self.updatePlaylist(
-                playlistId=playlistId,
-                songIdToAdd=songId
-            )
-
+            #TODO update name
+            if self.updatePlaylist(playlistId=playlistId, songIdToAdd=songId):
+                return playlistId
+            else:
+                return ''
         response = self.make_request(
             action='Playlists',
             mode="POST",
@@ -911,7 +911,7 @@ class Jellyfin(Base):
                 "Ids": ",".join(songId)
             }
         )
-        return response.get("Id")
+        return response.get("Id", "")
 
     def updatePlaylist(self, playlistId:str, songIdToAdd:list=[], songIndexToRemove:list=[]) -> bool:
         if songIndexToRemove:
@@ -926,6 +926,7 @@ class Jellyfin(Base):
 
             entry_ids_to_remove = []
             for index in songIndexToRemove:
+                index = int(index)
                 if 0 <= index < len(current_items):
                     entry_ids_to_remove.append(current_items[index].get("PlaylistItemId"))
 
@@ -1079,6 +1080,7 @@ class Jellyfin(Base):
             logger.error(f"can't get server information: {e}")
 
         return server_information
+
 
 
 

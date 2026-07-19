@@ -19,7 +19,7 @@ class PlaylistSelectorRow(Adw.ActionRow):
         integration.connect_to_model(self.id, 'songCount', self.update_song_count)
         integration.connect_to_model(self.id, 'gdkPaintable', self.update_cover)
 
-    def update_cover(self):
+    def update_cover(self, paintable):
         if paintable:
             self.cover_el.set_from_paintable(paintable)
             self.cover_el.set_pixel_size(48)
