@@ -184,31 +184,23 @@ class Local(Base):
             logger.error(f"can't get image from {model_id}: {e}")
         return b''
 
-    def getCoverArt(self, model_id:str='', big:bool=False) -> Gdk.Paintable:
-        if not model_id:
-            return None
+    def updateCoverArt(self, model_id:str):
         if model := self.loaded_models.get(model_id):
-            if big:
-                if paintable := model.get_property('gdkPaintableBig'):
-                    return paintable
-            else:
-                if paintable := model.get_property('gdkPaintable'):
-                    return paintable
-            try:
-                if raw_data := self.getCoverArtBytes(model_id, 720 if big else 240):
-                    gbytes = GLib.Bytes.new(raw_data)
-                    texture = Gdk.Texture.new_from_bytes(gbytes)
-                    if big:
-                        model.set_property('gdkPaintableBig', texture)
-                        return model.get_property('gdkPaintableBig')
-                    else:
-                        model.set_property('gdkPaintable', texture)
-                        return model.get_property('gdkPaintable')
-            except Exception as e:
-                logger.error(f"can't get image from {model_id} (size {720 if big else 240}): {e}")
-        return None
+            sizes = {
+                'gdkPaintableBig': 720,
+                'gdkPaintable': 240
+            }
+            for property_name, size in sizes.items():
+                if not model.get_property(property_name):
+                    try:
+                        if response_bytes := self.getCoverArtBytes(model_id, size):
+                            gbytes = GLib.Bytes.new(response_bytes)
+                            texture = Gdk.Texture.new_from_bytes(gbytes)
+                            model.set_property(property_name, texture)
+                    except Exception as e:
+                        logger.error(f"can't get image from {model_id} (size {720 if big else 240}): {e}")
 
-    def getCoverArtUrl(self, model_id:str="", big:bool=False) -> str:
+    def getCoverArtUrl(self, model_id:str) -> str:
         if model := self.loaded_models.get(model_id):
             directory = os.path.join(self.getIntegrationDir(), 'covers')
             file_name = '{} - {}.png'.format(model.get_property('title'), model.get_property('artist')).replace('/', '-')
@@ -218,7 +210,13 @@ class Local(Base):
             try:
                 shutil.rmtree(directory, ignore_errors=True)
                 os.makedirs(directory, exist_ok=True)
-                if paintable := self.getCoverArt(model_id, big):
+
+                paintable = self.model.get_property('gdkPaintable')
+                if not paintable:
+                    self.updateCoverArt(model_id)
+                    paintable = self.model.get_property('gdkPaintable')
+
+                if paintable:
                     paintable.save_to_png(path)
                     return "file://{}".format(path)
             except Exception as e:
@@ -279,13 +277,13 @@ class Local(Base):
         return [song_id for song_id in star_list if song_id.startswith("SONG:") and song_id in self.loaded_models]
 
     def verifyArtist(self, model_id:str, force_update:bool=False, use_threading:bool=True):
-        threading.Thread(target=self.getCoverArt, args=(model_id,), daemon=True).start()
+        threading.Thread(target=self.updateCoverArt, args=(model_id,), daemon=True).start()
 
     def verifyAlbum(self, model_id:str, force_update:bool=False, use_threading:bool=True):
-        threading.Thread(target=self.getCoverArt, args=(model_id,), daemon=True).start()
+        threading.Thread(target=self.updateCoverArt, args=(model_id,), daemon=True).start()
 
     def verifyPlaylist(self, model_id:str, force_update:bool=False, use_threading:bool=True):
-        threading.Thread(target=self.getCoverArt, args=(model_id,), daemon=True).start()
+        threading.Thread(target=self.updateCoverArt, args=(model_id,), daemon=True).start()
 
     def verifySong(self, model_id:str, force_update:bool=False, use_threading:bool=True):
         def run():
@@ -352,7 +350,7 @@ class Local(Base):
                 if artist.get('id'):
                     update_artist(artist.get('id'), artist.get('name'))
 
-            self.getCoverArt(model_id)
+            self.updateCoverArt(model_id)
 
         # safe check before loading
         song = self.loaded_models.get(model_id)

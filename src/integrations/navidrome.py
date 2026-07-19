@@ -123,47 +123,40 @@ class Navidrome(Base):
             logger.error(f"can't get image from {model_id}: {e}")
         return b''
 
-    def getCoverArt(self, model_id:str='', big:bool=False) -> Gdk.Paintable:
-        if not model_id:
-            return None
+    def updateCoverArt(self, model_id:str):
         if model := self.loaded_models.get(model_id):
             if isinstance(model, models.Song) and model.get_property('isExternalFile'):
-                return local.Local.getCoverArt(self, model_id, big=big)
-            if big:
-                if paintable := model.get_property('gdkPaintableBig'):
-                    return paintable
-            else:
-                if paintable := model.get_property('gdkPaintable'):
-                    return paintable
+                local.Local.updateCoverArt(self, model_id)
+                return
 
-            response_bytes = self.getCoverArtBytes(model_id, 720 if big else 240)
-            if not response_bytes and isinstance(model, models.Song):
-                response_bytes = self.getCoverArtBytes(model.get_property('albumId'), 720 if big else 240)
-                if response_bytes:
-                    model.set_property('coverArt', model.get_property('albumId')) # For getCoverArtUrl
+            sizes = {
+                'gdkPaintableBig': 720,
+                'gdkPaintable': 240
+            }
+            for property_name, size in sizes.items():
+                if not model.get_property(property_name):
+                    response_bytes = self.getCoverArtBytes(model_id, size)
+                    if not response_bytes and isinstance(model, models.Song):
+                        response_bytes = self.getCoverArtBytes(model.get_property('albumId'), size)
+                        if response_bytes:
+                            model.set_property('coverArt', model.get_property('albumId')) # For getCoverArtUrl
 
-            if response_bytes:
-                try:
-                    gbytes = GLib.Bytes.new(response_bytes)
-                    texture = Gdk.Texture.new_from_bytes(gbytes)
-                    if big:
-                        model.set_property('gdkPaintableBig', texture)
-                        return model.get_property('gdkPaintableBig')
-                    else:
-                        model.set_property('gdkPaintable', texture)
-                        return model.get_property('gdkPaintable')
-                except Exception as e:
-                    logger.error(f"can't convert image from {model_id} (size {720 if big else 240}): {e}")
-        return None
+                    if response_bytes:
+                        try:
+                            gbytes = GLib.Bytes.new(response_bytes)
+                            texture = Gdk.Texture.new_from_bytes(gbytes)
+                            model.set_property(property_name, texture)
+                        except Exception as e:
+                            logger.error(f"can't convert image from {model_id} (size {size}): {e}")
 
-    def getCoverArtUrl(self, model_id:str='', big:bool=False) -> str:
+    def getCoverArtUrl(self, model_id:str) -> str:
         if model := self.loaded_models.get(model_id):
             if isinstance(model, models.Song) and model.get_property('isExternalFile'):
                 return ""
             params = {
                 **self.get_base_params(),
                 'id': model.get_property('coverArt') or model.get_property('id'),
-                'size': 720 if big else 240
+                'size': 240
             }
             return '{}?{}'.format(self.get_url('getCoverArt'), urlencode(params))
         return ""
@@ -278,7 +271,7 @@ class Navidrome(Base):
             else:
                 update()
 
-        threading.Thread(target=self.getCoverArt, args=(model_id,), daemon=True).start()
+        threading.Thread(target=self.updateCoverArt, args=(model_id,), daemon=True).start()
 
     def verifyAlbum(self, model_id:str, force_update:bool=False, use_threading:bool=True):
         def update():
@@ -302,7 +295,7 @@ class Navidrome(Base):
             else:
                 update()
 
-        threading.Thread(target=self.getCoverArt, args=(model_id,), daemon=True).start()
+        threading.Thread(target=self.updateCoverArt, args=(model_id,), daemon=True).start()
 
     def verifyPlaylist(self, model_id:str, force_update:bool=False, use_threading:bool=True):
         def update():
@@ -323,7 +316,7 @@ class Navidrome(Base):
             else:
                 update()
 
-        threading.Thread(target=self.getCoverArt, args=(model_id,), daemon=True).start()
+        threading.Thread(target=self.updateCoverArt, args=(model_id,), daemon=True).start()
 
     def verifySong(self, model_id:str, force_update:bool=False, use_threading:bool=True):
         def update():
@@ -342,7 +335,6 @@ class Navidrome(Base):
                     song_dict['userRating'] = self.get_rating(model_id)
 
                 self.loaded_models.get(model_id).update_data(**song_dict, albumGain=gains.get('albumGain', 0.0), trackGain=gains.get('trackGain', 0.0))
-                threading.Thread(target=self.getCoverArt, args=(model_id,), daemon=True).start()
             elif model_id in self.loaded_models:
                 self.loaded_models.get(model_id).set_property('deleted', True)
                 del self.loaded_models[model_id]
@@ -356,8 +348,8 @@ class Navidrome(Base):
                 threading.Thread(target=update, daemon=True).start()
             else:
                 update()
-        else:
-            threading.Thread(target=self.getCoverArt, args=(model_id,), daemon=True).start()
+
+        threading.Thread(target=self.updateCoverArt, args=(model_id,), daemon=True).start()
 
     def star(self, model_id:str) -> bool:
         response = None

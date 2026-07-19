@@ -150,6 +150,9 @@ class Base(GObject.Object):
                 self.verifySong(currentSongId, use_threading=False)
 
             if currentSongModel := self.loaded_models.get(currentSongId):
+                if not currentSongModel.get_property('gdkPaintable') or not currentSongModel.get_property('gdkPaintableBig'):
+                    self.updateCoverArt(currentSongId)
+
                 self.song_connections['songId'] = currentSongId
                 self.song_connections['connectionId'] = currentSongModel.connect('notify', lambda item, gparam: self.current_song_property_changed(gparam.get_name(), item.get_property(gparam.get_name())))
                 for param in list(self.song_connections.get('callbacks', {})):
@@ -244,17 +247,14 @@ class Base(GObject.Object):
         print('WARNING', 'getCoverArtBytes', 'not implemented')
         return b''
 
-    def getCoverArt(self, model_id:str='', big:bool=False) -> Gdk.Paintable:
-        # should set gdkPaintable to Model
-        # should return Gdk.Paintable (texture)
-        # Important: if big is set to True then DO NOT save the picture to the model, just return it
-        # Resolutios: 240 normally, 720 if big is set to True
-        print('WARNING', 'getCoverArt', 'not implemented')
-        return None
+    def updateCoverArt(self, model_id:str):
+        # update both gdkPaintable and gdkPaintableBig
+        print('WARNING', 'updateCoverArt', 'not implemented')
 
-    def getCoverArtUrl(self, model_id:str='', big:bool=False) -> str:
+    def getCoverArtUrl(self, model_id:str) -> str:
         # Returns URL that can be used to get coverArt directly by external services
         # Returns empty string when a url is not available
+        print('WARNING', 'getCoverArtUrl', 'not implemented')
         return ""
 
     def ping(self) -> dict:
@@ -291,19 +291,19 @@ class Base(GObject.Object):
         return []
 
     def verifyArtist(self, model_id:str, force_update:bool=False, use_threading:bool=True):
-        # verifies that element is fully loaded with all it's metadata, should also call for getCoverArt
+        # verifies that element is fully loaded with all it's metadata, should also call for updateCoverArt
         print('WARNING', 'verifyArtist', 'not implemented')
 
     def verifyAlbum(self, model_id:str, force_update:bool=False, use_threading:bool=True):
-        # verifies that element is fully loaded with all it's metadata, should also call for getCoverArt
+        # verifies that element is fully loaded with all it's metadata, should also call for updateCoverArt
         print('WARNING', 'verifyAlbum', 'not implemented')
 
     def verifyPlaylist(self, model_id:str, force_update:bool=False, use_threading:bool=True):
-        # verifies that element is fully loaded with all it's metadata, should also call for getCoverArt
+        # verifies that element is fully loaded with all it's metadata, should also call for updateCoverArt
         print('WARNING', 'verifyPlaylist', 'not implemented')
 
     def verifySong(self, model_id:str, force_update:bool=False, use_threading:bool=True):
-        # verifies that element is fully loaded with all it's metadata, should also call for getCoverArt
+        # verifies that element is fully loaded with all it's metadata, should also call for updateCoverArt
         print('WARNING', 'verifySong', 'not implemented')
 
     def star(self, model_id:str) -> bool:
