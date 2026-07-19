@@ -837,7 +837,7 @@ class Bandcamp(Navidrome):
 
     login_page_metadata = {
         'icon-name': "bandcamp-symbolic",
-        'title': _("Bandcamp"),
+        'title': "Bandcamp",
         'description': _("Important: Use your Subsonic login information."),
         'entries': ['user', 'password'],
         'additional-link': {
@@ -846,7 +846,7 @@ class Bandcamp(Navidrome):
         }
     }
     button_metadata = {
-        'title': _("Bandcamp (Beta)"),
+        'title': "Bandcamp (Beta)",
         'subtitle': _("Explore your online library")
     }
 
