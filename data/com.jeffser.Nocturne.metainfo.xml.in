@@ -97,6 +97,30 @@
   </keywords>
 
   <releases>
+    <release version="1.4.0" date="2026-07-18">
+      <url type="details">https://github.com/Jeffser/Nocturne/releases/tag/1.4.0</url>
+      <description translate="no">
+        <p>New</p>
+        <ul>
+          <li>Added Bandcamp (Beta) integration</li>
+          <li>Added option to auto download lyrics</li>
+          <li>Fallback to album cover if song does not have one</li>
+          <li>Removed music folder permission (Flatpak), now relying on portal paths</li>
+          <li>Redesigned carousel pan buttons</li>
+          <li>Connections to current song data are now faster</li>
+          <li>Added custom cache manager solution</li>
+        </ul>
+        <p>Fix</p>
+        <ul>
+          <li>Fixed lyrics getting mixed within songs</li>
+          <li>Prevent MPRIS from calling functions in instance constantly</li>
+          <li>Username and passwords are now stripped when accessing an instance</li>
+          <li>Instance row from preferences dialog now loads in the background</li>
+          <li>Fixed 'no songs' message appearing on playlists and albums for a split second</li>
+          <li>Fixes to radio playback and UI implementation</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.3.2" date="2026-07-07">
       <url type="details">https://github.com/Jeffser/Nocturne/releases/tag/1.3.2</url>
       <description translate="no">
