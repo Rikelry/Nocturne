@@ -895,10 +895,16 @@ def show_artist_from_song(window, model_id:str):
             __show_page(window, Widgets.ArtistPage(artist_id))
 
 def show_artist_from_album(window, model_id:str):
-    integration = get_current_integration()
-    if model := integration.loaded_models.get(model_id):
-        if artist_id := model.get_property('artistId'):
-            __show_page(window, Widgets.ArtistPage(artist_id))
+    def run():
+        integration = get_current_integration()
+        integration.verifyAlbum(model_id, force_update=True, use_threading=False)
+        if model := integration.loaded_models.get(model_id):
+            if artist_id := model.get_property('artistId'):
+                __show_page(window, Widgets.ArtistPage(artist_id))
+            elif artists := model.get_property('artists'):
+                if artist_id := artists[0].get('id'):
+                    __show_page(window, Widgets.ArtistPage(artist_id))
+    threading.Thread(target=run, daemon=True).start()
 
 def play_shuffle_artist(window, model_id:str):
     def run():
