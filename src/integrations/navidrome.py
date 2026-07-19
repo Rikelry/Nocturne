@@ -62,12 +62,12 @@ class Navidrome(Base):
     def make_request(self, action:str, params:dict={}) -> dict:
         try:
             response = self.send_request(action, params)
-            if response.status_code == 200:
+            if response.status_code in (200, 201):
                 data = response.json().get('subsonic-response', {})
                 if data.get('status') == 'failed' and data.get('error', {}).get('code') in (41, 42):
                     self._use_apikey_auth = True
                     response = self.send_request(action, params)
-                    if response.status_code == 200:
+                    if response.status_code in (200, 201):
                         return response.json().get('subsonic-response', {})
                 return data
         except Exception as e:
@@ -99,12 +99,14 @@ class Navidrome(Base):
             cover_id = model_id
             if model := self.loaded_models.get(model_id):
                 cover_id = model.get_property('coverArt') or model_id
+            params={
+                'id': cover_id
+            }
+            if size != -1:
+                params['size'] = size
             response = self.send_request(
                 action='getCoverArt',
-                params={
-                    'id': cover_id,
-                    'size': size
-                }
+                params=params
             )
             response.raise_for_status()
             return response.content

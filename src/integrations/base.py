@@ -18,7 +18,7 @@ class CacheManager(GObject.Object):
     # Completely thread safe
 
     timeout = GObject.Property(type=int, default=20) # Max time waiting for origin thread to finish (seconds)
-    permanence = GObject.Property(type=int, default=5) # How long will the cache object last (seconds)
+    permanence = GObject.Property(type=int, default=60) # How long will the cache object last (seconds)
 
     results = {}
     events = {}
