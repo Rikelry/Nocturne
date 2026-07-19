@@ -621,7 +621,8 @@ class Player(EventAdapter):
                             title=_("Warning: Song changed but volume is set to 0")
                         ))
 
-                if stream_url := integration.get_stream_url(song_id):
+                def update_stream_url(stream_url):
+                    # Call with GLib.idle_add
                     self.gst.set_state(Gst.State.READY)
                     self.gst.set_property('uri', stream_url)
                     if self.pause_next_change:
@@ -637,8 +638,13 @@ class Player(EventAdapter):
                             success, duration = self.gst.query_duration(Gst.Format.TIME)
                             if success:
                                 model.set_property('duration', duration / Gst.SECOND)
-                else:
-                    self.gst.set_state(Gst.State.NULL)
+
+                def obtain_stream_url():
+                    if stream_url := integration.get_stream_url(song_id):
+                        GLib.idle_add(update_stream_url, stream_url)
+                    else:
+                        GLib.idle_add(lambda: self.gst.set_state(Gst.State.NULL) and False)
+                threading.Thread(target=obtain_stream_url).start()
         else:
             self.gst.set_state(Gst.State.NULL)
 

@@ -26,10 +26,6 @@ class Navidrome(Base):
 
     url = GObject.Property(type=str, default="http://127.0.0.1:4533")
 
-    cache_requests = {}
-    cache_events = {}
-    cache_lock = threading.Lock()
-
     def get_base_params(self) -> dict:
         params = {
             'v': '1.16.1',
@@ -84,6 +80,19 @@ class Navidrome(Base):
         model = self.loaded_models.get(song_id)
 
         if radioStreamUrl := model.get_property('radioStreamUrl'):
+            try:
+                with self.session.get(radioStreamUrl, stream=True, timeout=10) as r:
+                    r.raise_for_status()
+                    content_type = r.headers.get('Content-Type', '').lower()
+                    if 'mpegurl' in content_type or 'text/plain' in content_type or 'octet-stream' in content_type:
+                        # It is a playlist text file, extract url
+                        for line in r.iter_lines(decode_unicode=True):
+                            line = line.decode('utf-8')
+                            if line and not line.startswith('#'):
+                                return line.strip()
+            except Exception as e:
+                print(e)
+                pass
             return radioStreamUrl
         elif model.get_property('isExternalFile'):
             return 'file://{}'.format(model.get_property('path'))
@@ -875,3 +884,4 @@ class Bandcamp(Navidrome):
     # [] Implement playlists
     # [] Implement auto queue (missing getSimilarSongs and getRandomSongs)
     # [] Check if scrobble works
+
