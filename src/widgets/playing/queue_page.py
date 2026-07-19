@@ -22,6 +22,7 @@ class PlayingQueuePage(Gtk.ScrolledWindow):
             'active',
             Gio.SettingsBindFlags.DEFAULT
         )
+        self.song_list_el.main_stack.set_visible_child_name('content')
 
     def setup(self):
         integration = get_current_integration()

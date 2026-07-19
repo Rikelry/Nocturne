@@ -171,7 +171,7 @@ class AlbumPage(Adw.NavigationPage):
 
             GLib.idle_add(self.song_list_el.list_el.invalidate_sort)
             GLib.idle_add(self.connect_rows)
-        if len(list(self.song_list_el.list_el)) != song_list:
+        if len(list(self.song_list_el.list_el)) != len(song_list):
             threading.Thread(target=run, daemon=True).start()
 
     def connect_rows(self):

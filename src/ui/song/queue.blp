@@ -109,6 +109,10 @@ template $NocturneSongQueue: Gtk.Box {
     transition-type: crossfade;
     vhomogeneous: false;
     Gtk.StackPage {
+      name: "loading";
+      child: Adw.Spinner {};
+    }
+    Gtk.StackPage {
       name: "content";
       child: Gtk.ListBox list_el {
         styles [
