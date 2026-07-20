@@ -5,53 +5,65 @@ template $NocturnePlayingCoverArt: Gtk.Box{
   orientation: vertical;
   spacing: 5;
 
-  Gtk.Overlay {
-    halign: center;
-    overflow: hidden;
-    styles [
-      "card"
-    ]
-
-    [overlay]
-    $NocturneSpectrum spectrum_el {
-      hexpand: true;
-      vexpand: true;
-      overflow: hidden;
+  Gtk.Box {
+    Gtk.Image previous_icon_el {
+      icon-name: "media-skip-backward-symbolic";
+      visible: false;
     }
 
-    child: Adw.ViewStack view_stack_el {
-      hhomogeneous: false;
-      vhomogeneous: false;
-      enable-transitions: true;
+    Gtk.Overlay {
+      halign: center;
+      overflow: hidden;
+      styles [
+        "card"
+      ]
 
-      Adw.ViewStackPage {
-        title: _("Audio");
-        name: "audio";
-        icon-name: "sound-symbolic";
-        child: Gtk.Picture cover_el {
-          paintable: Adw.SpinnerPaintable {
-            widget: cover_el;
-          };
-          accessibility {
-            label: _("Song Cover");
-          }
-        };
+      [overlay]
+      $NocturneSpectrum spectrum_el {
+        hexpand: true;
+        vexpand: true;
+        overflow: hidden;
       }
 
-      Adw.ViewStackPage {
-        title: _("Video");
-        name: "video";
-        icon-name: "video-clip-symbolic";
-        child: Gtk.Picture video_el {
-          paintable: Adw.SpinnerPaintable {
-            widget: video_el;
+      child: Adw.ViewStack view_stack_el {
+        hhomogeneous: false;
+        vhomogeneous: false;
+        enable-transitions: true;
+
+        Adw.ViewStackPage {
+          title: _("Audio");
+          name: "audio";
+          icon-name: "sound-symbolic";
+          child: Gtk.Picture cover_el {
+            paintable: Adw.SpinnerPaintable {
+              widget: cover_el;
+            };
+            accessibility {
+              label: _("Song Cover");
+            }
           };
-          accessibility {
-            label: _("Video");
-          }
-        };
-      }
-    };
+        }
+
+        Adw.ViewStackPage {
+          title: _("Video");
+          name: "video";
+          icon-name: "video-clip-symbolic";
+          child: Gtk.Picture video_el {
+            paintable: Adw.SpinnerPaintable {
+              widget: video_el;
+            };
+            accessibility {
+              label: _("Video");
+            }
+          };
+        }
+      };
+    }
+
+    Gtk.Image next_icon_el {
+      icon-name: "media-skip-forward-symbolic";
+      visible: false;
+    }
   }
 
   Adw.ViewSwitcher view_switcher_el {
