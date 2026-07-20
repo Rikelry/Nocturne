@@ -37,7 +37,7 @@ class PlayingCoverArt(Gtk.Box, Adw.Swipeable):
     # Swipeable and SwipeTracker code ----
 
     def do_get_distance(self):
-        return float(self.get_width() / 2)
+        return float(self.get_width() / 1.5)
 
     def do_get_progress(self):
         return float(self.get_property('swipeProgress'))
