@@ -45,13 +45,13 @@ def __show_custom_toast(window, model_id:str, title_property:str, subtitle:str, 
             overflow=Gtk.Overflow.HIDDEN,
             halign=Gtk.Align.CENTER,
             valign=Gtk.Align.CENTER,
+            icon_name="music-note-symbolic",
+            pixel_size=32
         )
         if model:
             if paintable := model.get_property('gdkPaintable'):
                 GLib.idle_add(album_art.set_from_paintable, paintable)
                 GLib.idle_add(album_art.set_pixel_size, 48)
-        if not album_art.get_paintable():
-            GLib.idle_add(album_art.set_from_icon_name, "music-note-symbolic")
         GLib.idle_add(custom_widget.add_prefix, album_art)
     toast = Adw.Toast(
         custom_title=custom_widget,
