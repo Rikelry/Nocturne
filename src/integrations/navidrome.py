@@ -793,6 +793,13 @@ class Bandcamp(Navidrome):
         'ratings': {
             'id': 'TEXT PRIMARY KEY',
             'rating': 'INTEGER DEFAULT 1'
+        },
+        'scrobble': {
+            'id': 'TEXT PRIMARY KEY',
+            'plays': 'INTEGER DEFAULT 1',
+            'last_play': 'INTEGER DEFAULT 0',
+            'album_id': 'TEXT NOT NULL',
+            'artist_id': 'TEXT NOT NULL'
         }
     }
 
@@ -935,3 +942,55 @@ class Bandcamp(Navidrome):
 
         self.save_json('queue.json', queue_dict)
         return True
+
+    # Implementation of Scrobble / album pages
+
+    def scrobble(self, model_id:str, submission:bool = True):
+        if not model_id:
+            return
+        if model := self.loaded_models.get(model_id):
+            if model.get_property('isExternalFile') or model.get_property('radioStreamUrl'):
+                return
+
+            if submission:
+                conn, cursor = sql_instance.get_connection(self)
+                query = """
+                INSERT INTO scrobble (id, plays, last_play, album_id, artist_id)
+                VALUES (?, 1, ?, ?, ?)
+                ON CONFLICT (id) DO UPDATE SET
+                    plays = plays + 1,
+                    last_play = excluded.last_play,
+                    album_id = excluded.album_id,
+                    artist_id = excluded.artist_id
+                """
+                cursor.execute(query, (model_id, int(time.time()), model.get_property('albumId'), model.get_property('artistId')))
+                conn.commit()
+                conn.close()
+        super().scrobble(model_id, submission)
+
+    def getAlbumList(self, list_type:str="recent", size:int=10, offset:int=0) -> list:
+        if list_type in ("frequent", "recent"):
+            album_views = {}
+            conn, cursor = sql_instance.get_connection(self)
+            cursor.execute("SELECT album_id, plays, last_play FROM scrobble")
+            for row in cursor.fetchall():
+                album_id = row[0]
+                plays = row[1]
+                last_play = row[2]
+
+                if album_id in album_views:
+                    album_views[album_id]['plays'] += plays
+                    album_views[album_id]['last_play'] = max(album_views.get(album_id).get('last_play'), last_play)
+                else:
+                    album_views[album_id] = {
+                        'plays': plays,
+                        'last_play': last_play
+                    }
+            conn.close()
+            if list_type == "frequent":
+                album_list = sorted(album_views, key=lambda x: album_views.get(x).get('plays'), reverse=True)
+            else:
+                album_list = sorted(album_views, key=lambda x: album_views.get(x).get('last_play'), reverse=True)
+            return [model_id for model_id in album_list if model_id in self.loaded_models][offset:size+offset]
+        else:
+            return super().getAlbumList(list_type, size, offset)
