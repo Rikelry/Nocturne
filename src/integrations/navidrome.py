@@ -674,7 +674,7 @@ class Navidrome(Base):
         }
         try:
             response = self.send_request('ping')
-            if response.status_code in (200, 201): #TODO do not use send_request
+            if response.status_code in (200, 201):
                 data = response.json().get('subsonic-response', {})
                 server_information['title'] = "{} {}".format(data.get('type'), data.get('serverVersion')).title()
         except Exception as e:
@@ -801,28 +801,7 @@ class Bandcamp(Navidrome):
         server_info['link'] = 'https://bandcamp.com'
         return server_info
 
-    def get_rating(self, model_id) -> int: # For internal use
-        conn, cursor = sql_instance.get_connection(self)
-        cursor.execute("SELECT rating FROM ratings WHERE id = ?", (model_id,))
-        result = cursor.fetchone()
-        conn.close()
-        return result[0] if result else 0
-
-    def setRating(self, model_id:str, rating:int=0) -> bool:
-        conn, cursor = sql_instance.get_connection(self)
-        if rating == 0:
-            cursor.execute("DELETE FROM ratings WHERE id = ?", (model_id,))
-        else:
-            query = """
-            INSERT INTO ratings (id, rating)
-            VALUES (?, ?)
-            ON CONFLICT (id) DO UPDATE SET
-                rating = excluded.rating
-            """
-            cursor.execute(query, (model_id, rating))
-        conn.commit()
-        conn.close()
-        return True
+    # Implementation of Radios ---------
 
     def getInternetRadioStations(self) -> list:
         conn, cursor = sql_instance.get_connection(self)
@@ -882,35 +861,77 @@ class Bandcamp(Navidrome):
 
     # Implementation of Ratings ---------
 
-    def verifyArtist(self, model_id:str, force_update:bool=False, use_threading:bool=True):
-        def update():
-            super().verifyArtist(model_id, force_update, False)
-            if model := self.loaded_models.get(model_id):
-                model.set_property('userRating', self.get_rating(model_id))
-        if use_threading:
-            threading.Thread(target=update).start()
+    def get_rating(self, model_id) -> int: # For internal use
+        conn, cursor = sql_instance.get_connection(self)
+        cursor.execute("SELECT rating FROM ratings WHERE id = ?", (model_id,))
+        result = cursor.fetchone()
+        conn.close()
+        return result[0] if result else 0
+
+    def setRating(self, model_id:str, rating:int=0) -> bool:
+        conn, cursor = sql_instance.get_connection(self)
+        if rating == 0:
+            cursor.execute("DELETE FROM ratings WHERE id = ?", (model_id,))
         else:
-            update()
+            query = """
+            INSERT INTO ratings (id, rating)
+            VALUES (?, ?)
+            ON CONFLICT (id) DO UPDATE SET
+                rating = excluded.rating
+            """
+            cursor.execute(query, (model_id, rating))
+        conn.commit()
+        conn.close()
+        return True
+
+    def verifyArtist(self, model_id:str, force_update:bool=False, use_threading:bool=True):
+        super().verifyArtist(model_id, force_update, use_threading)
+        if model := self.loaded_models.get(model_id):
+            model.set_property('userRating', self.get_rating(model_id))
 
     def verifyAlbum(self, model_id:str, force_update:bool=False, use_threading:bool=True):
-        def update():
-            super().verifyAlbum(model_id, force_update, False)
-            if model := self.loaded_models.get(model_id):
-                model.set_property('userRating', self.get_rating(model_id))
-        if use_threading:
-            threading.Thread(target=update).start()
-        else:
-            update()
+        super().verifyAlbum(model_id, force_update, use_threading)
+        if model := self.loaded_models.get(model_id):
+            model.set_property('userRating', self.get_rating(model_id))
 
     def verifySong(self, model_id:str, force_update:bool=False, use_threading:bool=True):
-        def update():
-            super().verifySong(model_id, force_update, False)
+        super().verifySong(model_id, force_update, use_threading)
+        if model := self.loaded_models.get(model_id):
+            model.set_property('userRating', self.get_rating(model_id))
+
+    # Implementation of Play Queue ---------
+
+    def getPlayQueue(self) -> tuple:
+        queue_dict = self.open_json('queue.json')
+
+        song_list = [model_id for model_id in queue_dict.get('id', []) if model_id in self.loaded_models]
+        current = queue_dict.get('current', "")
+        if current not in song_list:
+            if len(song_list) > 0:
+                current = song_list[0]
+            else:
+                current = ""
+
+        return current, song_list
+
+    def savePlayQueue(self, id_list:list, current:str, position:int) -> bool:
+        final_id_list = []
+        for model_id in id_list:
             if model := self.loaded_models.get(model_id):
-                model.set_property('userRating', self.get_rating(model_id))
-        if use_threading:
-            threading.Thread(target=update).start()
-        else:
-            update()
+                if not model.get_property('isExternalFile'):
+                    final_id_list.append(model_id)
 
-    # -----------------------------------
+        if current not in final_id_list:
+            if len(final_id_list) > 0:
+                current = final_id_list[0]
+            else:
+                current = ""
 
+        queue_dict = {
+            'id': final_id_list,
+            'current': current,
+            'position': position
+        }
+
+        self.save_json('queue.json', queue_dict)
+        return True
