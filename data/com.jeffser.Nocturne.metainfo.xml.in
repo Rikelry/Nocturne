@@ -113,6 +113,7 @@
           <li>Implemented restore play queue for Bandcamp</li>
           <li>Footer in popout window now handles small sizes better</li>
           <li>Footers now hide previous / next buttons if they are small enough</li>
+          <li>Now Login button disables itself if entries are not filled</li>
         </ul>
         <p>Fix</p>
         <ul>
