@@ -97,6 +97,32 @@
   </keywords>
 
   <releases>
+    <release version="1.4.1" date="2026-07-21">
+      <url type="details">https://github.com/Jeffser/Nocturne/releases/tag/1.4.1</url>
+      <description translate="no">
+        <p>New</p>
+        <ul>
+          <li>Nocturne can now be controlled from CLI</li>
+          <li>Added swipe gestures in players</li>
+          <li>Added option to select all songs in a list</li>
+          <li>Most actions are now faster</li>
+          <li>Appearance of queue widgets have been improved</li>
+          <li>Images now have a cache database</li>
+          <li>Removed option to hide pan buttons in carousels (they have been redesigned)</li>
+          <li>Implemented recent and most played albums for Bandcamp</li>
+          <li>Implemented restore play queue for Bandcamp</li>
+          <li>Footer in popout window now handles small sizes better</li>
+          <li>Footers now hide previous / next buttons if they are small enough</li>
+        </ul>
+        <p>Fix</p>
+        <ul>
+          <li>Fixed error when searching using OpenSubsonic instances</li>
+          <li>Fixed 'Favorite' button not working in control page</li>
+          <li>Removed the bottom margin from toast messages in popout window</li>
+          <li>General improvements to performance and stability</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.4.0" date="2026-07-18">
       <url type="details">https://github.com/Jeffser/Nocturne/releases/tag/1.4.0</url>
       <description translate="no">
