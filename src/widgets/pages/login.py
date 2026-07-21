@@ -76,7 +76,6 @@ class LoginDialog(Adw.Dialog):
 
         # Login Button
         self.login_button_el.set_label(metadata.get('login-label') or _("Login"))
-        self.login_button_el.set_sensitive(True)
 
         # Quick Connect (Jellyfin)
         self.quick_connect_button_el.set_visible(self.integration.__gtype_name__ == 'NocturneIntegrationJellyfin')
@@ -85,6 +84,23 @@ class LoginDialog(Adw.Dialog):
         self.extra_menu_el.set_visible('extra-menu' in metadata)
         self.extra_menu_el.set_tooltip_text(metadata.get('extra-menu', {}).get('title', _("Extra Menu")))
         self.extra_menu_el.get_popover().set_child(ContextContainer(metadata.get('extra-menu', {}).get('context', {}), ''))
+        GLib.idle_add(self.update_login_sensitivity)
+
+    @Gtk.Template.Callback()
+    def update_login_sensitivity(self, *args):
+        sensitive = True
+        entries = self.integration.login_page_metadata.get('entries', [])
+        if 'status' in entries:
+            sensitive = sensitive and self.integration.get_property('serverRunning')
+        if 'url' in entries:
+            sensitive = sensitive and self.url_el.get_text()
+        if 'user' in entries:
+            sensitive = sensitive and self.user_el.get_text()
+        if 'password' in entries:
+            sensitive = sensitive and self.password_el.get_text()
+        if 'library-dir' in entries:
+            sensitive = sensitive and self.directory_el.get_subtitle()
+        self.login_button_el.set_sensitive(sensitive)
 
     @Gtk.Template.Callback()
     def library_changed(self, row, gparam):
@@ -120,7 +136,10 @@ class LoginDialog(Adw.Dialog):
     @Gtk.Template.Callback()
     def login_button_clicked(self, button=None):
         self.login_button_el.set_sensitive(False)
-        self.integration.set_property('url', self.url_el.get_text().strip())
+        url = self.url_el.get_text().strip()
+        if not url.startswith('http'):
+            url = 'http://' + url
+        self.integration.set_property('url', url)
         self.integration.set_property('trustServer', self.trust_server_el.get_active())
         self.integration.set_property('user', self.user_el.get_text().strip())
         secret.store_password(self.password_el.get_text().strip())

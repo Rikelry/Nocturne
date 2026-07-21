@@ -38,6 +38,7 @@ template $NocturneLoginDialog: Adw.Dialog {
               tooltip-text: _("Restart Instance");
               activatable: true;
               activated => $server_restart_requested();
+              notify::subtitle => $update_login_sensitivity();
 
               [prefix]
               Gtk.Image {
@@ -58,6 +59,7 @@ template $NocturneLoginDialog: Adw.Dialog {
 
             Adw.EntryRow url_el {
               title: _("Url");
+              changed => $update_login_sensitivity();
               [suffix]
               Gtk.MenuButton url_options_el {
                 styles [
@@ -80,6 +82,7 @@ template $NocturneLoginDialog: Adw.Dialog {
             Adw.ActionRow directory_el {
               title: _("Library Directory");
               notify::subtitle => $library_changed();
+              notify::subtitle => $update_login_sensitivity();
               activated => $open_local_directory();
               activatable: true;
               [prefix]
@@ -91,11 +94,13 @@ template $NocturneLoginDialog: Adw.Dialog {
 
             Adw.EntryRow user_el {
               title: _("Username");
+              changed => $update_login_sensitivity();
             }
 
             Adw.PasswordEntryRow password_el {
               title: _("Password");
               entry-activated => $login_button_clicked();
+              changed => $update_login_sensitivity();
             }
           }
 
