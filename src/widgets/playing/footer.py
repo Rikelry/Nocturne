@@ -19,13 +19,13 @@ class PlayingFooter(Gtk.Overlay):
 
     def setup(self):
         # Called after login
+        self.settings = Gio.Settings(schema_id="com.jeffser.Nocturne")
         integration = get_current_integration()
-        integration.connect_to_current_song('id', lambda song_id: self.update_progress_el_visibility())
+        integration.connect_to_model('currentSong', 'songId', lambda song_id: self.update_progress_el_visibility())
         integration.connect_to_model('currentSong', 'positionSeconds', self.position_changed)
         integration.connect_to_model('currentSong', 'buttonState', self.state_stack_el.set_visible_child_name)
         integration.connect_to_model('currentSong', 'displaySongTitle', self.display_title_changed)
         integration.connect_to_model('currentSong', 'displaySongArtist', self.display_artist_changed)
-        self.settings = Gio.Settings(schema_id="com.jeffser.Nocturne")
         self.settings.connect("changed::use-big-footer", self.big_mode_toggled)
         self.big_mode_toggled(self.settings, 'use-big-footer')
 
@@ -102,3 +102,4 @@ class PlayingFooter(Gtk.Overlay):
                 nanoseconds
             )
         GLib.timeout_add(500, lambda v=value: change_time(v) if v == scale_el.get_adjustment().get_value() else None)
+

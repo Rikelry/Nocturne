@@ -18,7 +18,7 @@ class CacheManager(GObject.Object):
     # Completely thread safe
 
     timeout = GObject.Property(type=int, default=20) # Max time waiting for origin thread to finish (seconds)
-    permanence = GObject.Property(type=int, default=60) # How long will the cache object last (seconds)
+    permanence = GObject.Property(type=int, default=5) # How long will the cache object last (seconds)
 
     results = {}
     events = {}
@@ -26,7 +26,7 @@ class CacheManager(GObject.Object):
 
     def delete_result(self, cache_id:str):
         with self.lock:
-            self.results.pop(cache_id, None)
+            del self.results[cache_id]
 
     def insert_result(self, cache_id:str, result:object):
         with self.lock:
@@ -135,7 +135,7 @@ class Base(GObject.Object):
     def current_song_property_changed(self, param:str, value:object):
         # do not change
         for callback in self.song_connections.get('callbacks', {}).get(param, []):
-            callback(value)
+            GLib.idle_add(callback, value)
 
     def song_changed(self):
         # do not change
@@ -154,9 +154,9 @@ class Base(GObject.Object):
                     self.updateCoverArt(currentSongId)
 
                 self.song_connections['songId'] = currentSongId
-                self.song_connections['connectionId'] = currentSongModel.connect('notify', lambda item, gparam: self.current_song_property_changed(gparam.get_name(), item.get_property(gparam.get_name())))
+                self.song_connections['connectionId'] = currentSongModel.connect('notify', lambda item, gparam: GLib.idle_add(self.current_song_property_changed, gparam.get_name(), item.get_property(gparam.get_name())))
                 for param in list(self.song_connections.get('callbacks', {})):
-                    self.current_song_property_changed(param, currentSongModel.get_property(param))
+                    GLib.idle_add(self.current_song_property_changed, param, currentSongModel.get_property(param))
 
     def open_json(self, filename:str, fallback={}) -> dict:
         # please use sql when possible

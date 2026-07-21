@@ -329,8 +329,8 @@ class Player(EventAdapter):
         }
         for parameter, callback in connections.items():
             integration.connect_to_current_song(parameter, callback)
-        integration.connect_to_current_song('id', self.song_changed)
-        integration.connect_to_current_song('id', lambda *_: self.discord_rpc.update())
+        integration.connect_to_model('currentSong', 'songId', self.song_changed)
+        integration.connect_to_model('currentSong', 'songId', lambda *_: self.discord_rpc.update())
         integration.connect_to_model('currentSong', 'displaySongTitle', lambda *_: self.discord_rpc.update())
         integration.connect_to_model('currentSong', 'displaySongArtist', lambda *_: self.discord_rpc.update())
 
@@ -621,31 +621,24 @@ class Player(EventAdapter):
                             title=_("Warning: Song changed but volume is set to 0")
                         ))
 
-                def update_stream_url(stream_url):
-                    if stream_url:
-                        # Call with GLib.idle_add
-                        self.gst.set_state(Gst.State.READY)
-                        self.gst.set_property('uri', stream_url)
-                        if self.pause_next_change:
-                            self.gst.set_state(Gst.State.PAUSED)
-                            self.pause_next_change = False
-                        else:
-                            self.gst.set_state(Gst.State.PLAYING)
-
-                        # Fix duration
-                        if model := integration.loaded_models.get(song_id):
-                            if not model.get_property('duration'):
-                                self.gst.get_state(Gst.CLOCK_TIME_NONE)
-                                success, duration = self.gst.query_duration(Gst.Format.TIME)
-                                if success:
-                                    model.set_property('duration', duration / Gst.SECOND)
+                if stream_url := integration.get_stream_url(song_id):
+                    self.gst.set_state(Gst.State.READY)
+                    self.gst.set_property('uri', stream_url)
+                    if self.pause_next_change:
+                        self.gst.set_state(Gst.State.PAUSED)
+                        self.pause_next_change = False
                     else:
-                        self.gst.set_state(Gst.State.NULL)
+                        self.gst.set_state(Gst.State.PLAYING)
 
-                def obtain_stream_url():
-                    GLib.idle_add(update_stream_url, integration.get_stream_url(song_id))
-
-                threading.Thread(target=obtain_stream_url).start()
+                    # Fix duration
+                    if model := integration.loaded_models.get(song_id):
+                        if not model.get_property('duration'):
+                            self.gst.get_state(Gst.CLOCK_TIME_NONE)
+                            success, duration = self.gst.query_duration(Gst.Format.TIME)
+                            if success:
+                                model.set_property('duration', duration / Gst.SECOND)
+                else:
+                    self.gst.set_state(Gst.State.NULL)
         else:
             self.gst.set_state(Gst.State.NULL)
 
