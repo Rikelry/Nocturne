@@ -429,7 +429,7 @@ class Local(Base):
             return lyrics_type, content
 
         # 2. Integration
-        def job_integration():
+        def job():
             if model := self.loaded_models.get(songId):
                 tag = TinyTag.get(model.get_property('path'))
                 if lyrics_str := tag.extra.get('lyrics'):
@@ -439,28 +439,16 @@ class Local(Base):
                         return True, {'type': 'plain', 'content': lyrics_str}
             return True, {}
 
-        if content_dict := self.cache_manager.get_result(f'IntegrationLyrics:{songId}', job_integration):
+        if content_dict := self.cache_manager.get_result(f'IntegrationLyrics:{songId}', job):
             if content := content_dict.get('content'):
                 if lyrics_type := content_dict.get('type'):
                     if lyrics_type in ('lrc', 'plain'):
                         self.saveLyrics(songId, content, lyrics_type)
                         return lyrics_type, content
 
-        # 3. Syncedlyrics get
-        def job_online(track_name, artist_name):
-            return True, syncedlyrics.search(
-                "[{}] [{}]".format(track_name, artist_name),
-                enhanced=True,
-                synced_only=True
-            )
+        # 3. Online
         if requestOnline:
-            if model := self.loaded_models.get(songId):
-                content = self.cache_manager.get_result(f'OnlineLyrics:{songId}', job_online, model.get_property('title'), model.get_property('artist'))
-                if content:
-                    self.saveLyrics(songId, content, 'lrc')
-                    return 'lrc', content
-                else:
-                    return 'not-found', ''
+            return super().getLyrics(songId, requestOnline)
         return 'not-found-locally', ''
 
     def search(self, query:str, artistCount:int=0, artistOffset:int=0, albumCount:int=0, albumOffset:int=0, songCount:int=0, songOffset:int=0, playlistCount:int=0, playlistOffset:int=0) -> dict:

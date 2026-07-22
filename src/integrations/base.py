@@ -3,7 +3,7 @@
 from gi.repository import GLib, GObject, Gdk
 from . import models, secret, sql_instance
 from ..constants import get_nocturne_version, INTEGRATIONS_DIR, DATA_DIR
-import requests, urllib3, time, os, json, threading, logging
+import requests, urllib3, time, os, json, threading, logging, syncedlyrics
 from datetime import datetime
 from requests.adapters import HTTPAdapter, Retry
 from concurrent.futures import ThreadPoolExecutor
@@ -397,12 +397,28 @@ class Base(GObject.Object):
     def getLyrics(self, songId:str, requestOnline:bool=False) -> tuple:
         # Do not modify, works as is
         # call this function first super().getLyrics(args)
-        # it loads lyrics from db
+        # it loads lyrics from db, as a last resource
 
-        # Legacy: Move existing lrc files to DB
         if model := self.loaded_models.get(songId):
+            # Radio
             if model.get_property('radioStreamUrl'):
                 return 'radio', ''
+
+            # Online
+            if requestOnline:
+                def job(track_name, artist_name):
+                    return True, syncedlyrics.search(
+                        "[{}] [{}]".format(track_name, artist_name),
+                        enhanced=True,
+                        synced_only=True
+                    )
+                if content := self.cache_manager.get_result(f'OnlineLyrics:{songId}', job, model.get_property('title'), model.get_property('artist')):
+                    self.saveLyrics(songId, content, 'lrc')
+                    return 'lrc', content
+                else:
+                    return 'not-found', ''
+
+            # Legacy: Move existing lrc files to DB
             file_name_without_ext = '{}|{}|{}|{}'.format(
                 model.get_property('title'),
                 model.get_property('artist'),
@@ -415,9 +431,17 @@ class Base(GObject.Object):
                 with open(lrc_path, 'r') as f:
                     if content := f.read():
                         self.saveLyrics(songId, content, 'lrc')
-                os.remove(lrc_path)
+                try:
+                    os.remove(lrc_path)
+                except:
+                    pass
             if os.path.isfile(plain_path):
-                os.remove(plain_path)
+                try:
+                    os.remove(plain_path)
+                except:
+                    pass
+        else:
+            return 'not-found', ''
 
         conn, cursor = sql_instance.get_connection(self)
         cursor.execute("SELECT type, content FROM lyrics WHERE id = ?", (songId,))

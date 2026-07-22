@@ -767,7 +767,7 @@ class Jellyfin(Base):
             return lyrics_type, content
 
         # 2. Integration
-        def job_integration():
+        def job():
             result = self.make_request(
                 action='Audio/{id}/Lyrics',
                 action_keys={'id': songId},
@@ -793,28 +793,16 @@ class Jellyfin(Base):
                     }
             return True, {}
 
-        if content_dict := self.cache_manager.get_result(f'IntegrationLyrics:{songId}', job_integration):
+        if content_dict := self.cache_manager.get_result(f'IntegrationLyrics:{songId}', job):
             if content := content_dict.get('content'):
                 if lyrics_type := content_dict.get('type'):
                     if lyrics_type in ('lrc', 'plain'):
                         self.saveLyrics(songId, content, lyrics_type)
                         return lyrics_type, content
 
-        # 3. Syncedlyrics get
-        def job_online(track_name, artist_name):
-            return True, syncedlyrics.search(
-                "[{}] [{}]".format(track_name, artist_name),
-                enhanced=True,
-                synced_only=True
-            )
+        # 3. Online
         if requestOnline:
-            if model := self.loaded_models.get(songId):
-                content = self.cache_manager.get_result(f'OnlineLyrics:{songId}', job_online, model.get_property('title'), model.get_property('artist'))
-                if content:
-                    self.saveLyrics(songId, content, 'lrc')
-                    return 'lrc', content
-                else:
-                    return 'not-found', ''
+            return super().getLyrics(songId, requestOnline)
         return 'not-found-locally', ''
 
     def __fetch_type(self, item_type:str, query:str, limit:int=5, offset:int=0, fields:str="", verify:bool=False):

@@ -211,7 +211,7 @@ class PlayingLyricsPage(Gtk.Stack):
             success, content = source_file.load_contents()
             if success:
                 integration = get_current_integration()
-                integration.saveLyrics(self.loaded_models.get('currentSong').get_property('songId'), content, 'lrc')
+                integration.saveLyrics(integration.loaded_models.get('currentSong').get_property('songId'), content, 'lrc')
 
     @Gtk.Template.Callback()
     def lyric_load_requested(self, button):
@@ -233,5 +233,5 @@ class PlayingLyricsPage(Gtk.Stack):
     def go_to_main(self, button=None):
         self.set_visible_child_name('not-found-locally')
         integration = get_current_integration()
-        integration.deleteLyrics(self.loaded_models.get('currentSong').get_property('songId'))
+        integration.deleteLyrics(integration.loaded_models.get('currentSong').get_property('songId'))
 

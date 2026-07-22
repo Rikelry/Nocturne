@@ -4,7 +4,7 @@ from gi.repository import GLib, GObject, Gdk, Gio
 from . import secret, models, local, sql_instance
 from ..constants import get_navidrome_path, get_navidrome_env, CONTEXT_MANAGED_NAVIDROME_SERVER, DOWNLOAD_QUEUE_DIR, DOWNLOADS_DIR, DOWNLOAD_MIME_MAP
 from .base import Base
-import random, threading, subprocess, os, re, logging, time, uuid, syncedlyrics
+import random, threading, subprocess, os, re, logging, time, uuid
 from urllib.parse import urlencode, urlparse
 
 logger = logging.getLogger(__name__)
@@ -419,7 +419,7 @@ class Navidrome(Base):
             return lyrics_type, content
 
         # 2. Integration
-        def job_integration():
+        def job():
             lyrics_data = self.make_request('getLyricsBySongId', {'id': songId}).get('lyricsList') or {}
             lyrics = (lyrics_data.get('structuredLyrics') or [{}])[0]
             if lyrics.get('synced'):
@@ -435,25 +435,13 @@ class Navidrome(Base):
                     return True, content
             return True, ''
 
-        if content := self.cache_manager.get_result(f'IntegrationLyrics:{songId}', job_integration):
+        if content := self.cache_manager.get_result(f'IntegrationLyrics:{songId}', job):
             self.saveLyrics(songId, content, 'lrc')
             return 'lrc', content
 
-        # 3. Syncedlyrics get
-        def job_online(track_name, artist_name):
-            return True, syncedlyrics.search(
-                "[{}] [{}]".format(track_name, artist_name),
-                enhanced=True,
-                synced_only=True
-            )
+        # 3. Online
         if requestOnline:
-            if model := self.loaded_models.get(songId):
-                content = self.cache_manager.get_result(f'OnlineLyrics:{songId}', job_online, model.get_property('title'), model.get_property('artist'))
-                if content:
-                    self.saveLyrics(songId, content, 'lrc')
-                    return 'lrc', content
-                else:
-                    return 'not-found', ''
+            return super().getLyrics(songId, requestOnline)
         return 'not-found-locally', ''
 
     def search(self, query:str, artistCount:int=0, artistOffset:int=0, albumCount:int=0, albumOffset:int=0, songCount:int=0, songOffset:int=0, playlistCount:int=0, playlistOffset:int=0) -> dict:
