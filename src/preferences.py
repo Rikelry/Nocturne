@@ -43,6 +43,7 @@ class NocturnePreferences(Adw.PreferencesDialog):
     footer_big_mode_el = Gtk.Template.Child()
     translucent_player_el = Gtk.Template.Child()
     use_sidebar_player_el = Gtk.Template.Child()
+    hide_singles_el = Gtk.Template.Child()
     button_size_el = Gtk.Template.Child()
 
     ## Dynamic Background
@@ -219,6 +220,12 @@ class NocturnePreferences(Adw.PreferencesDialog):
         settings.bind(
             "use-sidebar-player",
             self.use_sidebar_player_el,
+            "active",
+            Gio.SettingsBindFlags.DEFAULT
+        )
+        settings.bind(
+            "hide-singles",
+            self.hide_singles_el,
             "active",
             Gio.SettingsBindFlags.DEFAULT
         )

@@ -18,10 +18,12 @@ class AlbumsAllPage(Adw.NavigationPage):
     scrolledwindow = Gtk.Template.Child()
     offset = 0
     searching = False
+    skipped_albums = 0
 
     def __init__(self):
         super().__init__()
-        Gio.Settings(schema_id="com.jeffser.Nocturne").bind(
+        self.settings = Gio.Settings(schema_id="com.jeffser.Nocturne")
+        self.settings.bind(
             "default-view-mode",
             self.toggle_group_el,
             "active-name",
@@ -34,8 +36,7 @@ class AlbumsAllPage(Adw.NavigationPage):
             threading.Thread(target=self.search, daemon=True).start()
 
     def reload(self):
-        if len(list(self.list_el)) + len(list(self.wrapbox_el)) == 0:
-            GLib.idle_add(self.on_search, self.search_entry)
+        GLib.idle_add(self.on_search, self.search_entry)
 
     def reset(self):
         self.list_el.remove_all()
@@ -48,36 +49,50 @@ class AlbumsAllPage(Adw.NavigationPage):
         self.searching = True
         query = self.search_entry.get_text()
         integration = get_current_integration()
+        hide_singles = self.settings.get_value('hide-singles').unpack()
+        self.skipped_albums = 0
         search_results = integration.search(
             query=query,
             albumCount=30,
             albumOffset=self.offset
         )
         for album_id in search_results.get('album'):
+            should_skip = False
+            if hide_singles:
+                if model := integration.loaded_models.get(album_id):
+                    if model.get_property('songCount') <= 1:
+                        self.skipped_albums += 1
+                        should_skip = True
             results_list = [row for row in list(self.list_el) if row.id == album_id]
             if len(results_list) > 0:
-                GLib.idle_add(results_list[0].set_visible, True)
-            else:
+                GLib.idle_add(results_list[0].set_visible, not should_skip)
+            elif not should_skip:
                 row = AlbumRow(album_id)
                 GLib.idle_add(self.list_el.append, row)
 
             results_wrapbox = [button for button in list(self.wrapbox_el) if button.id == album_id]
             if len(results_wrapbox) > 0:
-                GLib.idle_add(results_wrapbox[0].set_visible, True)
-            else:
+                GLib.idle_add(results_wrapbox[0].set_visible, not should_skip)
+            elif not should_skip:
                 button = AlbumButton(album_id)
                 GLib.idle_add(self.wrapbox_el.append, button)
 
-        GLib.idle_add(self.end_stack.set_visible_child_name, 'end' if len(search_results.get('album')) < 30 else 'loading')
+        GLib.idle_add(self.end_stack.set_visible_child_name, 'end' if len(search_results.get('album')) - self.skipped_albums < 30 else 'loading')
         self.offset += 30
         self.searching = False
-        GLib.idle_add(self.update_visibility)
+        if len(search_results.get('album')) >= 30 and self.skipped_albums:
+            self.search()
+        else:
+            GLib.idle_add(self.update_visibility)
 
     @Gtk.Template.Callback()
     def on_search(self, search_entry):
         self.offset = 0
+        self.searching = False
+        print('on_search')
         for widget in list(self.list_el) + list(self.wrapbox_el):
             widget.set_visible(False)
+        self.end_stack.set_visible_child_name('loading')
         threading.Thread(target=self.search, daemon=True).start()
 
     @Gtk.Template.Callback()

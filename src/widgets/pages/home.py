@@ -83,6 +83,12 @@ class HomePage(Adw.NavigationPage):
                     albumCount=self.max_albums,
                     playlistCount=self.max_playlists
                 )
+                if self.settings.get_value('hide-singles').unpack():
+                    if album_results := search_results.get('album'):
+                        for albumId in album_results.copy():
+                            if model := integration.loaded_models.get(albumId):
+                                if model.get_property('songCount') <= 1:
+                                    search_results['album'].remove(albumId)
             else:
                 search_results = self.get_default_results()
             threading.Thread(

@@ -67,6 +67,9 @@
 	  <key name="use-sidebar-player" type="b">
 	    <default>false</default>
 	  </key>
+	  <key name="hide-singles" type="b">
+	    <default>false</default>
+	  </key>
 	  <key name="button-size" type="s">
 	    <default>'big'</default>
 	  </key>
