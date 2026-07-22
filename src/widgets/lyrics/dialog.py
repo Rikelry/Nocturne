@@ -3,7 +3,7 @@
 from gi.repository import Gtk, Adw, GLib, Gio, Gst
 from ...integrations import get_current_integration
 from ...constants import get_display_time
-from .helpers import get_lyrics
+from .helpers import prepare_lrc
 import threading
 
 @Gtk.Template(resource_path='/com/jeffser/Nocturne/lyrics/edit_row.ui')
@@ -89,16 +89,18 @@ class LyricsDialog(Adw.Dialog):
     def retrieve_lyrics(self):
         GLib.idle_add(self.main_stack.set_visible_child_name, 'loading')
         GLib.idle_add(self.lrc_list_el.remove_all)
-        lyrics = get_lyrics(self.id, True)
-        if lyrics.get('type') == 'lrc':
-            for line in lyrics.get('content'):
+        integration = get_current_integration()
+        lyrics_type, raw_content = integration.getLyrics(self.id, True)
+        if lyrics_type == 'lrc':
+            content = prepare_lrc(raw_content)
+            for line in content:
                 row = LyricEditRow(
                     ms=line.get('ms'),
                     content=line.get('content', '')
                 )
                 GLib.idle_add(self.lrc_list_el.append, row)
-        elif lyrics.get('type') == 'plain':
-            for index, line in enumerate(lyrics.get('content').split('\n')):
+        elif lyrics_type == 'plain':
+            for index, line in enumerate(content.split('\n')):
                 row = LyricEditRow(
                     ms=index*10000000,
                     content=line,
@@ -185,13 +187,12 @@ class LyricsDialog(Adw.Dialog):
             # ms, content
             lines.append((row.get_title(), row.get_text()))
 
-        file_text = '\n'.join(['[{}] {}'.format(ms, content) for ms, content in lines])
+        content = '\n'.join(['[{}] {}'.format(ms, content) for ms, content in lines])
 
-        target_value = GLib.Variant('a{sv}', {
-            'id': GLib.Variant('s', self.id),
-            'content': GLib.Variant('s', file_text)
-        })
-        self.get_root().activate_action("app.save_lyrics", target_value)
+        integration = get_current_integration()
+        integration.saveLyrics(self.id, content, 'lrc')
+        window.lyrics_page.song_changed(self.id)
+        __show_custom_toast(window, self.id, "title", _("Lyrics Saved"))
 
         Gio.Settings(schema_id="com.jeffser.Nocturne").set_string('playback-mode', self.playback_mode_backup)
         self.close()

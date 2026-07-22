@@ -4,7 +4,7 @@ from gi.repository import GLib, GObject, Gdk, Gio
 from . import secret, models, local, sql_instance
 from ..constants import get_navidrome_path, get_navidrome_env, CONTEXT_MANAGED_NAVIDROME_SERVER, DOWNLOAD_QUEUE_DIR, DOWNLOADS_DIR, DOWNLOAD_MIME_MAP
 from .base import Base
-import random, threading, subprocess, os, re, logging, time, uuid
+import random, threading, subprocess, os, re, logging, time, uuid, syncedlyrics
 from urllib.parse import urlencode, urlparse
 
 logger = logging.getLogger(__name__)
@@ -408,22 +408,53 @@ class Navidrome(Base):
 
         return [s.get('id') for s in songs if s.get('id')]
 
-    def getLyrics(self, songId:str) -> dict:
-        lyrics_data = self.make_request('getLyricsBySongId', {'id': songId}).get('lyricsList') or {}
-        lyrics = (lyrics_data.get('structuredLyrics') or [{}])[0]
+    def getLyrics(self, songId:str, requestOnline:bool=False) -> tuple:
+        # Initial Checks
+        if songId not in self.loaded_models:
+            return 'not-found', ''
 
-        if lyrics.get('synced', False):
-            lrc_lines = []
-            for line in lyrics.get('line', []):
-                lrc_lines.append({
-                    'ms': line.get('start'),
-                    'content': line.get('value')
-                })
-            return {
-                'type': 'lrc',
-                'content': lrc_lines
-            }
-        return {'type': 'not-found'}
+        # 1. Database
+        lyrics_type, content = super().getLyrics(songId)
+        if lyrics_type != 'not-found':
+            return lyrics_type, content
+
+        # 2. Integration
+        def job_integration():
+            lyrics_data = self.make_request('getLyricsBySongId', {'id': songId}).get('lyricsList') or {}
+            lyrics = (lyrics_data.get('structuredLyrics') or [{}])[0]
+            if lyrics.get('synced'):
+                lrc_lines = []
+                for line in lyrics.get('line', []):
+                    ms = line.get('start')
+                    minutes = ms // 60000
+                    seconds = (ms % 60000) // 1000
+                    centiseconds = (ms % 1000) // 10
+                    timestamp = f"[{minutes:02d}:{seconds:02d}.{centiseconds:02d}]"
+                    lrc_lines.append(f"{timestamp} {line.get('value').strip()}")
+                if content := '\n'.join(lrc_lines):
+                    return True, content
+            return True, ''
+
+        if content := self.cache_manager.get_result(f'IntegrationLyrics:{songId}', job_integration):
+            self.saveLyrics(songId, content, 'lrc')
+            return 'lrc', content
+
+        # 3. Syncedlyrics get
+        def job_online(track_name, artist_name):
+            return True, syncedlyrics.search(
+                "[{}] [{}]".format(track_name, artist_name),
+                enhanced=True,
+                synced_only=True
+            )
+        if requestOnline:
+            if model := self.loaded_models.get(songId):
+                content = self.cache_manager.get_result(f'OnlineLyrics:{songId}', job_online, model.get_property('title'), model.get_property('artist'))
+                if content:
+                    self.saveLyrics(songId, content, 'lrc')
+                    return 'lrc', content
+                else:
+                    return 'not-found', ''
+        return 'not-found-locally', ''
 
     def search(self, query:str, artistCount:int=0, artistOffset:int=0, albumCount:int=0, albumOffset:int=0, songCount:int=0, songOffset:int=0, playlistCount:int=0, playlistOffset:int=0) -> dict:
         response = self.make_request('search3', {

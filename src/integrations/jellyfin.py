@@ -756,32 +756,66 @@ class Jellyfin(Base):
         self.__bulk_verify("Audio", songs)
         return [song.get("Id") for song in songs]
 
-    def getLyrics(self, songId:str) -> dict:
-        result = self.make_request(
-            action='Audio/{id}/Lyrics',
-            action_keys={'id': songId},
-            mode='GET'
-        )
-        isSynced = bool(result.get('Lyrics', [{}])[0].get('Start'))
-        if isSynced:
-            lines = []
-            for line in result.get('Lyrics', []):
-                lines.append({
-                    'content': line.get('Text'),
-                    'ms': line.get('Start') / 10000
-                })
-            return {
-                'type': 'lrc',
-                'content': lines
-            }
-        else:
-            text = '\n'.join([line.get('Text') for line in result.get('Lyrics', [])])
-            if text:
-                return {
-                    'type': 'plain',
-                    'content': text
+    def getLyrics(self, songId:str, requestOnline:bool=False) -> tuple:
+        # Initial Checks
+        if songId not in self.loaded_models:
+            return 'not-found', ''
+
+        # 1. Database
+        lyrics_type, content = super().getLyrics(songId)
+        if lyrics_type != 'not-found':
+            return lyrics_type, content
+
+        # 2. Integration
+        def job_integration():
+            result = self.make_request(
+                action='Audio/{id}/Lyrics',
+                action_keys={'id': songId},
+                mode='GET'
+            )
+            if result.get('Lyrics', [{}])[0].get('Start'): # is lrc
+                lines = []
+                for line in result.get('Lyrics', []):
+                    lines.append({
+                        'content': line.get('Text'),
+                        'ms': line.get('Start') / 10000
+                    })
+                return True, {
+                    'type': 'lrc',
+                    'content': lines
                 }
-        return {'type': 'not-found'}
+            else:
+                text = '\n'.join([line.get('Text') for line in result.get('Lyrics', [])])
+                if text:
+                    return True, {
+                        'type': 'plain',
+                        'content': text
+                    }
+            return True, {}
+
+        if content_dict := self.cache_manager.get_result(f'IntegrationLyrics:{songId}', job_integration):
+            if content := content_dict.get('content'):
+                if lyrics_type := content_dict.get('type')
+                    if lyrics_type in ('lrc', 'plain'):
+                        self.saveLyrics(songId, content, lyrics_type)
+                        return lyrics_type, content
+
+        # 3. Syncedlyrics get
+        def job_online(track_name, artist_name):
+            return True, syncedlyrics.search(
+                "[{}] [{}]".format(track_name, artist_name),
+                enhanced=True,
+                synced_only=True
+            )
+        if requestOnline:
+            if model := self.loaded_models.get(songId):
+                content = self.cache_manager.get_result(f'OnlineLyrics:{songId}', job_online, model.get_property('title'), model.get_property('artist'))
+                if content:
+                    self.saveLyrics(songId, content, 'lrc')
+                    return 'lrc', content
+                else:
+                    return 'not-found', ''
+        return 'not-found-locally', ''
 
     def __fetch_type(self, item_type:str, query:str, limit:int=5, offset:int=0, fields:str="", verify:bool=False):
         if limit == 0:

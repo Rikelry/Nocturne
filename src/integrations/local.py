@@ -419,14 +419,49 @@ class Local(Base):
         return random.sample(songs, k=min(size, len(songs)))
 
     def getLyrics(self, songId:str) -> dict:
-        if model := self.loaded_models.get(songId):
-            tag = TinyTag.get(model.get_property('path'))
-            if lyrics_str := tag.extra.get('lyrics'):
-                if lyrics_str.startswith('['):
-                    return {'type': 'lrc-unprepared', 'content': lyrics_str}
+        # Initial Checks
+        if songId not in self.loaded_models:
+            return 'not-found', ''
+
+        # 1. Database
+        lyrics_type, content = super().getLyrics(songId)
+        if lyrics_type != 'not-found':
+            return lyrics_type, content
+
+        # 2. Integration
+        def job_integration():
+            if model := self.loaded_models.get(songId):
+                tag = TinyTag.get(model.get_property('path'))
+                if lyrics_str := tag.extra.get('lyrics'):
+                    if lyrics_str.startswith('['):
+                        return True, {'type': 'lrc', 'content': lyrics_str}
+                    else:
+                        return True, {'type': 'plain', 'content': lyrics_str}
+            return True, {}
+
+        if content_dict := self.cache_manager.get_result(f'IntegrationLyrics:{songId}', job_integration):
+            if content := content_dict.get('content'):
+                if lyrics_type := content_dict.get('type')
+                    if lyrics_type in ('lrc', 'plain'):
+                        self.saveLyrics(songId, content, lyrics_type)
+                        return lyrics_type, content
+
+        # 3. Syncedlyrics get
+        def job_online(track_name, artist_name):
+            return True, syncedlyrics.search(
+                "[{}] [{}]".format(track_name, artist_name),
+                enhanced=True,
+                synced_only=True
+            )
+        if requestOnline:
+            if model := self.loaded_models.get(songId):
+                content = self.cache_manager.get_result(f'OnlineLyrics:{songId}', job_online, model.get_property('title'), model.get_property('artist'))
+                if content:
+                    self.saveLyrics(songId, content, 'lrc')
+                    return 'lrc', content
                 else:
-                    return {'type': 'plain', 'content': lyrics_str}
-        return {'type': 'not-found'}
+                    return 'not-found', ''
+        return 'not-found-locally', ''
 
     def search(self, query:str, artistCount:int=0, artistOffset:int=0, albumCount:int=0, albumOffset:int=0, songCount:int=0, songOffset:int=0, playlistCount:int=0, playlistOffset:int=0) -> dict:
         all_artists = [model for model_id, model in self.loaded_models.items() if model_id in self.album_artist_ids]
@@ -702,3 +737,4 @@ class Offline(Local):
             logger.error(f"can't get server information: {e}")
 
         return server_information
+

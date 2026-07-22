@@ -261,7 +261,6 @@ class NocturneWindow(Adw.ApplicationWindow):
         self.create_action(actions.play_songs_next, parameter_type="as")
         self.create_action(actions.play_songs_later, parameter_type="as")
         self.create_action(actions.edit_lyrics, parameter_type=None)
-        self.create_action(actions.save_lyrics, parameter_type="a{sv}")
         self.create_action(actions.play_random_queue, parameter_type=None)
         self.create_action(actions.show_song_details)
 

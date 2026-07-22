@@ -2,7 +2,7 @@
 
 from gi.repository import Gtk, GObject, GLib, Gio, Pango, Gst
 from ...integrations import get_current_integration
-from ..lyrics.helpers import get_lyrics
+from ..lyrics.helpers import prepare_lrc
 from ...constants import DATA_DIR, CONTEXT_LYRICS
 from ..containers import ContextContainer
 import threading, os, re
@@ -120,24 +120,24 @@ class PlayingLyricsPage(Gtk.Stack):
         integration = get_current_integration()
         if integration.loaded_models.get('currentSong').get_property('songId') != song_id:
             return
-        lyrics = get_lyrics(song_id, attempt_download)
+        lyrics_type, raw_content = integration.getLyrics(song_id, attempt_download)
         if integration.loaded_models.get('currentSong').get_property('songId') != song_id:
             return
 
-        if settings.get_value('auto-download-lyrics').unpack() and lyrics.get('type') == 'not-found-locally':
+        if settings.get_value('auto-download-lyrics').unpack() and lyrics_type == 'not-found-locally':
             thread = threading.Thread(target=self.update_lyrics, args=(song_id, True), daemon=True)
             GLib.timeout_add(3000, thread.start)
             return
 
-        GLib.idle_add(self.set_visible_child_name, lyrics.get('type'))
-        if lyrics.get('type') == 'plain':
-            GLib.idle_add(self.plain_label_el.set_label, lyrics.get('content'))
-        elif lyrics.get('type') == 'lrc':
+        GLib.idle_add(self.set_visible_child_name, lyrics_type)
+        if lyrics_type == 'plain':
+            GLib.idle_add(self.plain_label_el.set_label, content)
+        elif lyrics_type == 'lrc':
+            content = prepare_lrc(raw_content)
             GLib.idle_add(self.lrc_list_el.remove_all)
-            if lyrics.get('content')[0].get('content'):
-                lyrics['content'].insert(0, {'content': '', 'ms': 0})
+            if content[0].get('content'):
+                content.insert(0, {'content': '', 'ms': 0})
             simulate_wbwl = settings.get_value('simulate-word-by-word-lyrics').unpack()
-            content = lyrics.get('content')
             for i, line in enumerate(content):
                 if simulate_wbwl:
                     duration_ms = 1000
@@ -206,35 +206,12 @@ class PlayingLyricsPage(Gtk.Stack):
         integration = get_current_integration()
         self.song_changed(integration.loaded_models.get('currentSong').get_property('songId'), True)
 
-    def get_lrc_path(self) -> str:
-        integration = get_current_integration()
-        song_id = integration.loaded_models.get('currentSong').get_property('songId')
-        model = integration.loaded_models.get(song_id)
-        lyrics_dir = os.path.join(DATA_DIR, 'lyrics')
-        os.makedirs(lyrics_dir, exist_ok=True)
-        file_name_without_ext = '{}|{}|{}|{}'.format(
-            model.get_property('title'),
-            model.get_property('artist'),
-            model.get_property('album') or model.get_property('title'),
-            model.get_property('duration')
-        )
-        return os.path.join(lyrics_dir, file_name_without_ext+'.lrc')
-
     def copy_lyrics_lrc(self, dialog, task):
         if source_file := dialog.open_finish(task):
-            lrc_path = self.get_lrc_path()
-            destination_file = Gio.File.new_for_path(lrc_path)
-            integration = get_current_integration()
-            song_id = integration.loaded_models.get('currentSong').get_property('songId')
-            source_file.copy_async(
-                destination_file,
-                Gio.FileCopyFlags.OVERWRITE,
-                GLib.PRIORITY_DEFAULT,
-                None,
-                None,
-                lambda *_: self.song_changed(song_id, False)
-            )
-
+            success, content = source_file.load_contents()
+            if success:
+                integration = get_current_integration()
+                integration.saveLyrics(self.loaded_models.get('currentSong').get_property('songId'), content, 'lrc')
 
     @Gtk.Template.Callback()
     def lyric_load_requested(self, button):
@@ -255,7 +232,6 @@ class PlayingLyricsPage(Gtk.Stack):
     @Gtk.Template.Callback()
     def go_to_main(self, button=None):
         self.set_visible_child_name('not-found-locally')
-        if existing_path := self.get_lrc_path():
-            if os.path.isfile(existing_path):
-                os.remove(existing_path)
+        integration = get_current_integration()
+        integration.deleteLyrics(self.loaded_models.get('currentSong').get_property('songId'))
 

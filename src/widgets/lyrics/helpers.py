@@ -1,19 +1,6 @@
 # helpers.py
 
-from ...constants import DATA_DIR
 from ...integrations import get_current_integration
-import syncedlyrics, os
-
-def online_get(trackName:str, artistName:str, lrcPath):
-    def job(track_name, artist_name, lrc_path):
-        return True, syncedlyrics.search(
-            "[{}] [{}]".format(track_name, artist_name),
-            enhanced=True,
-            synced_only=True,
-            save_path=lrc_path
-        )
-    integration = get_current_integration()
-    return integration.cache_manager.get_result(lrcPath, job, trackName, artistName, lrcPath)
 
 def prepare_lrc(lrc_str:str) -> list:
     lrc_lines = []
@@ -38,90 +25,4 @@ def prepare_lrc(lrc_str:str) -> list:
             except ValueError:
                 pass
     return lrc_lines
-
-def list_to_lrc_str(lrc_list:list) -> str:
-    lrc_lines = []
-    for item in lrc_list:
-        ms = int(item.get('ms', 0))
-        minutes = ms // 60000
-        seconds = (ms % 60000) // 1000
-        centiseconds = (ms % 1000) // 10
-
-        timestamp = f"[{minutes:02d}:{seconds:02d}.{centiseconds:02d}]"
-        lrc_lines.append(f"{timestamp} {item.get('content').strip()}")
-    return '\n'.join(lrc_lines)
-
-def get_lyrics(song_id:str, online_download:bool) -> dict:
-    # returns these keys:
-    # type (instrumental, lrc, plain, not-found, not-found-locally, radio)
-    # content (none (instrumental/not-found/not-found-locally/radio), list (lrc), str (plain))
-
-    integration = get_current_integration()
-    if not integration:
-        return {'type': 'not-found', 'content': None}
-
-    model = integration.loaded_models.get(song_id)
-
-    if not model:
-        return {'type': 'not-found', 'content': None}
-
-    if model.get_property('radioStreamUrl'):
-        return {'type': 'radio', 'content': None}
-
-    lyrics_dir = os.path.join(DATA_DIR, 'lyrics')
-    os.makedirs(lyrics_dir, exist_ok=True)
-
-    file_name_without_ext = '{}|{}|{}|{}'.format(
-        model.get_property('title'),
-        model.get_property('artist'),
-        model.get_property('album') or model.get_property('title'),
-        model.get_property('duration')
-    )
-    file_name_without_ext = file_name_without_ext.replace('/', '-')
-    lrc_path = os.path.join(lyrics_dir, file_name_without_ext+'.lrc')
-    plain_lyrics_path = os.path.join(lyrics_dir, file_name_without_ext+'.txt')
-
-    if os.path.isfile(lrc_path):
-        with open(lrc_path, 'r') as f:
-            return {'type': 'lrc', 'content': prepare_lrc(f.read())}
-
-    if os.path.isfile(plain_lyrics_path):
-        with open(plain_lyrics_path, 'r') as f:
-            content = f.read()
-            if content == '[instrumental]':
-                return {'type': 'instrumental', 'content': None}
-            else:
-                return {'type': 'plain', 'content': content}
-
-    if not online_download:
-        result = integration.getLyrics(song_id)
-        if result.get('type') != 'not-found':
-            if result.get('type') == 'lrc':
-                with open(lrc_path, 'w+') as f:
-                    f.write(list_to_lrc_str(result.get('content')))
-            elif result.get('type') == 'lrc-unprepared':
-                with open(lrc_path, 'w+') as f:
-                    f.write(result.get('content'))
-                result = {
-                    'type': 'lrc',
-                    'content': prepare_lrc(result.get('content'))
-                }
-            elif result.get('type') == 'plain':
-                with open(plain_lyrics_path, 'w+') as f:
-                    f.write(result.get('content'))
-            return result
-
-    if not online_download:
-        return {'type': 'not-found-locally', 'content': None}
-
-    lyrics = online_get(
-        trackName=model.get_property('title'),
-        artistName=model.get_property('artist'),
-        lrcPath=lrc_path
-    )
-
-    if not lyrics:
-        return {'type': 'not-found', 'content': None}
-
-    return {'type': 'lrc', 'content': prepare_lrc(lyrics)}
 

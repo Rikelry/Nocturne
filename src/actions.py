@@ -530,28 +530,6 @@ def play_songs_later(window, song_list:list):
 def edit_lyrics(window):
     GLib.idle_add(Widgets.LyricsDialog().present, window.get_application().props.active_window)
 
-def save_lyrics(window, lyric_dict:dict):
-    # lyric_dict KEYS
-    # id:str
-    # content:str
-
-    integration = get_current_integration()
-    model = integration.loaded_models.get(lyric_dict.get('id'))
-    file_name_without_ext = '{}|{}|{}|{}'.format(
-        model.get_property('title'),
-        model.get_property('artist'),
-        model.get_property('album') or model.get_property('title'),
-        model.get_property('duration')
-    )
-    lyrics_dir = os.path.join(DATA_DIR, 'lyrics')
-    lrc_path = os.path.join(lyrics_dir, file_name_without_ext+'.lrc')
-
-    with open(lrc_path, 'w') as f:
-        f.write(lyric_dict.get('content'))
-
-    GLib.idle_add(window.lyrics_page.song_changed, lyric_dict.get('id'))
-    __show_custom_toast(window, lyric_dict.get('id'), "title", _("Lyrics Saved"))
-
 def play_random_queue(window):
     integration = get_current_integration()
     __replace_queue(window, integration.getRandomSongs())

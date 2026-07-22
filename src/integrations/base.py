@@ -2,7 +2,7 @@
 
 from gi.repository import GLib, GObject, Gdk
 from . import models, secret, sql_instance
-from ..constants import get_nocturne_version, INTEGRATIONS_DIR
+from ..constants import get_nocturne_version, INTEGRATIONS_DIR, DATA_DIR
 import requests, urllib3, time, os, json, threading, logging
 from datetime import datetime
 from requests.adapters import HTTPAdapter, Retry
@@ -27,7 +27,8 @@ class CacheManager(GObject.Object):
 
     def delete_result(self, cache_id:str):
         with self.lock:
-            del self.results[cache_id]
+            if cache_id in self.results:
+                del self.results[cache_id]
 
     def insert_result(self, cache_id:str, result:object):
         with self.lock:
@@ -191,6 +192,11 @@ class Base(GObject.Object):
                 'song_id': 'TEXT NOT NULL',
                 'amount': 'INTEGER DEFAULT 1',
                 'UNIQUE': '(month, song_id)'
+            },
+            'lyrics': {
+                'id': 'TEXT PRIMARY KEY',
+                'type': 'TEXT NOT NULL',
+                'content': 'TEXT NOT NULL'
             },
             **self.sqlSchema
         }
@@ -367,9 +373,59 @@ class Base(GObject.Object):
         print('WARNING', 'getRandomSongs', 'not implemented')
         return []
 
-    def getLyrics(self, songId:str) -> dict:
-        # returns same dicts as lyrics -> helpers -> get_lyrics
-        return {'type': 'not-found'}
+    def saveLyrics(self, songId:str, content:str, lyrics_type:str):
+        # Do not modify, works as is
+        conn, cursor = sql_instance.get_connection(self)
+        query = """
+        INSERT INTO lyrics (id, type, content)
+        VALUES (?, ?, ?)
+        ON CONFLICT (id) DO UPDATE SET
+            type = excluded.type,
+            content = excluded.content
+        """
+        cursor.execute(query, (songId, lyrics_type, content))
+        conn.commit()
+        conn.close()
+
+    def deleteLyrics(self, songId:str):
+        conn, cursor = sql_instance.get_connection(self)
+        cursor.execute("DELETE FROM lyrics WHERE id = ?", (songId,))
+        conn.commit()
+        conn.close()
+        # Do not modify, works as is
+
+    def getLyrics(self, songId:str, requestOnline:bool=False) -> tuple:
+        # Do not modify, works as is
+        # call this function first super().getLyrics(args)
+        # it loads lyrics from db
+
+        # Legacy: Move existing lrc files to DB
+        if model := self.loaded_models.get(songId):
+            if model.get_property('radioStreamUrl'):
+                return 'radio', ''
+            file_name_without_ext = '{}|{}|{}|{}'.format(
+                model.get_property('title'),
+                model.get_property('artist'),
+                model.get_property('album') or model.get_property('title'),
+                model.get_property('duration')
+            )
+            lrc_path = os.path.join(DATA_DIR, 'lyrics', file_name_without_ext+'.lrc')
+            plain_path = os.path.join(DATA_DIR, 'lyrics', file_name_without_ext+'.txt')
+            if os.path.isfile(lrc_path):
+                with open(lrc_path, 'r') as f:
+                    if content := f.read():
+                        self.saveLyrics(songId, content, 'lrc')
+                os.remove(lrc_path)
+            if os.path.isfile(plain_path):
+                os.remove(plain_path)
+
+        conn, cursor = sql_instance.get_connection(self)
+        cursor.execute("SELECT type, content FROM lyrics WHERE id = ?", (songId,))
+        row = cursor.fetchone()
+        conn.close()
+        if row and row[0] in ('plain', 'lrc') and row[1]:
+            return row[0], row[1]
+        return 'not-found', ''
 
     def search(self, query:str, artistCount:int=0, artistOffset:int=0, albumCount:int=0, albumOffset:int=0, songCount:int=0, songOffset:int=0, playlistCount:int=0, playlistOffset:int=0) -> dict:
         # returns a dict with results trucated with the count and offset, the dict has keys for album, artist and song, the values are lists of IDs
