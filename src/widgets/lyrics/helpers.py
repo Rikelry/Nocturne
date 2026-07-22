@@ -4,13 +4,16 @@ from ...constants import DATA_DIR
 from ...integrations import get_current_integration
 import syncedlyrics, os
 
-def online_get(track_name:str, artist_name:str, lrc_path):
-    return syncedlyrics.search(
-        "[{}] [{}]".format(track_name, artist_name),
-        enhanced=True,
-        synced_only=True,
-        save_path=lrc_path
-    )
+def online_get(trackName:str, artistName:str, lrcPath):
+    def job(track_name, artist_name, lrc_path):
+        return True, syncedlyrics.search(
+            "[{}] [{}]".format(track_name, artist_name),
+            enhanced=True,
+            synced_only=True,
+            save_path=lrc_path
+        )
+    integration = get_current_integration()
+    return integration.cache_manager.get_result(lrcPath, job, trackName, artistName, lrcPath)
 
 def prepare_lrc(lrc_str:str) -> list:
     lrc_lines = []
@@ -112,9 +115,9 @@ def get_lyrics(song_id:str, online_download:bool) -> dict:
         return {'type': 'not-found-locally', 'content': None}
 
     lyrics = online_get(
-        track_name=model.get_property('title'),
-        artist_name=model.get_property('artist'),
-        lrc_path=lrc_path
+        trackName=model.get_property('title'),
+        artistName=model.get_property('artist'),
+        lrcPath=lrc_path
     )
 
     if not lyrics:
