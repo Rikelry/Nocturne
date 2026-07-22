@@ -80,7 +80,9 @@ class AlbumButton(Gtk.Box):
             self.year_el.set_visible(False)
 
     def update_artist_id(self, artistId:str):
-        self.artist_el.set_action_target_value(GLib.Variant.new_string(artistId))
+        if artistId:
+            self.artist_el.set_action_name("app.show_artist")
+            self.artist_el.set_action_target_value(GLib.Variant.new_string(artistId))
 
     def update_starred(self, starred:bool):
         if starred:

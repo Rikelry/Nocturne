@@ -6,7 +6,6 @@ from .base import Base
 from ..constants import DOWNLOAD_QUEUE_DIR, DOWNLOADS_DIR, DOWNLOAD_MIME_MAP
 import threading, os, platform, logging
 from urllib.parse import urlencode
-import time
 
 logger = logging.getLogger(__name__)
 
@@ -60,40 +59,45 @@ class Jellyfin(Base):
     def make_request(self, action:str, json:dict={}, params:dict={}, mode:str="GET", action_keys:dict={}) -> dict:
         def request_job(url):
             try:
-                if mode == 'GET':
-                    response = self.session.get(
-                        url,
-                        params=params,
-                        json=json,
-                        headers=self.get_base_header(),
-                        verify=not self.get_property('trustServer')
-                    )
-                elif mode == 'POST':
-                    response = self.session.post(
-                        url,
-                        params=params,
-                        json=json,
-                        headers=self.get_base_header(),
-                        verify=not self.get_property('trustServer')
-                    )
-                elif mode == 'DELETE':
-                    response = self.session.delete(
-                        url,
-                        params=params,
-                        json=json,
-                        headers=self.get_base_header(),
-                        verify=not self.get_property('trustServer')
-                    )
-                elif mode == 'RAWGET':
-                    # Get without calling json()
-                    response = self.session.get(
-                        self.get_url(action, **action_keys),
-                        params=params,
-                        json=json,
-                        headers=self.get_base_header(),
-                        verify=not self.get_property('trustServer')
-                    )
-                    return response.status_code in (200, 201), response
+                with self.session as current_session:
+                    if mode == 'GET':
+                        response = current_session.get(
+                            url,
+                            params=params,
+                            json=json,
+                            headers=self.get_base_header(),
+                            verify=not self.get_property('trustServer'),
+                            timeout=(3.05, 10)
+                        )
+                    elif mode == 'POST':
+                        response = current_session.post(
+                            url,
+                            params=params,
+                            json=json,
+                            headers=self.get_base_header(),
+                            verify=not self.get_property('trustServer'),
+                            timeout=(3.05, 10)
+                        )
+                    elif mode == 'DELETE':
+                        response = current_session.delete(
+                            url,
+                            params=params,
+                            json=json,
+                            headers=self.get_base_header(),
+                            verify=not self.get_property('trustServer'),
+                            timeout=(3.05, 10)
+                        )
+                    elif mode == 'RAWGET':
+                        # Get without calling json()
+                        response = current_session.get(
+                            self.get_url(action, **action_keys),
+                            params=params,
+                            json=json,
+                            headers=self.get_base_header(),
+                            verify=not self.get_property('trustServer'),
+                            timeout=(3.05, 10)
+                        )
+                        return response.status_code in (200, 201), response
                 if response.status_code in (200, 201):
                     return True, response.json()
                 elif response.status_code == 204:
@@ -170,16 +174,16 @@ class Jellyfin(Base):
         try:
             if not model_id:
                 return b''
-            url = self.get_url('Items/{id}/Images/Primary', id=model_id)
+            url = 'Items/{id}/Images/Primary'
             if model := self.loaded_models.get(model_id):
-                image_url = self.loaded_models.get(model_id).get_property('coverArt')
-                if image_url == "None":
-                    return b''
-                elif image_url:
-                    url = image_url
+                if image_url := self.loaded_models.get(model_id).get_property('coverArt'):
+                    if image_url != "None":
+                        url = image_url
+                    else:
+                        return b'' #will otherwise return a 404 error
 
             response = self.make_request(
-                action='Items/{id}/Images/Primary',
+                action=url,
                 action_keys={'id': model_id},
                 params={
                     'maxWidth': size,
@@ -236,7 +240,10 @@ class Jellyfin(Base):
             if token := self.get_property('accessToken'):
                 params['api_key'] = token
 
-            url = model.get_property('coverArt') or self.get_url('Items/{id}/Images/Primary', id=model_id)
+            if model.get_property('coverArt') and model.get_property('coverArt') != "None":
+                url = self.get_url(model.get_property('coverArt'))
+            else:
+                url = self.get_url('Items/{id}/Images/Primary', id=model_id)
 
             return '{}?{}'.format(url, urlencode(params))
         return ""
@@ -316,15 +323,11 @@ class Jellyfin(Base):
             mode='GET',
             params=params
         ).get('Items', [])
-        id_list = []
-        for album in albums:
-            if album.get("Id"):
-                self.verifyAlbum(album.get("Id"), album_object=album, lite=True)
-                id_list.append(album.get("Id"))
-        return id_list
+        self.__bulk_verify("MusicAlbum", albums)
+        return [album.get("Id") for album in albums]
 
     def getArtists(self, size:int=10) -> list:
-        response = self.make_request(
+        artists = self.make_request(
             action='Artists/AlbumArtists',
             mode='GET',
             params={
@@ -335,16 +338,12 @@ class Jellyfin(Base):
                 "SortOrder": "Ascending",
                 "ParentId": self.get_property("libraryId")
             }
-        )
-        id_list = []
-        for artist in response.get('Items', []):
-            if artist.get("Id"):
-                self.verifyArtist(artist.get("Id"), artist_object=artist, lite=True)
-                id_list.append(artist.get("Id"))
-        return id_list
+        ).get('Items', [])
+        self.__bulk_verify("MusicArtist", artists)
+        return [artist.get("Id") for artist in artists]
 
     def getPlaylists(self) -> list:
-        response = self.make_request(
+        playlists = self.make_request(
             action='Users/{userId}/Items',
             mode='GET',
             params={
@@ -352,13 +351,10 @@ class Jellyfin(Base):
                 "Recursive": "true",
                 "Fields": "None"
             }
-        )
+        ).get('Items', [])
         id_list = []
-        for playlist in response.get('Items', []):
-            if playlist.get("Id"):
-                self.verifyPlaylist(playlist.get("Id"), playlist_object=playlist, lite=True)
-                id_list.append(playlist.get("Id"))
-        return id_list
+        self.__bulk_verify("Playlist", playlists)
+        return [playlist.get("Id") for playlist in playlists]
 
     def getStarredSongs(self) -> list:
         song_list = []
@@ -374,6 +370,7 @@ class Jellyfin(Base):
             }
         ).get("Items", [])
 
+        self.__bulk_verify("Audio", songs)
         return [song.get("Id") for song in songs]
 
     def verifyArtist(self, model_id:str, force_update:bool=False, use_threading:bool=True, artist_object:models.Artist=None, lite:bool=False):
@@ -388,7 +385,7 @@ class Jellyfin(Base):
 
             if artist.get("Id"):
                 primary_tag = artist.get('ImageTags', {}).get('Primary', '')
-                cover_art = self.get_url('Items/{id}/Images/Primary?={tag_id}', id=model_id, tag_id=primary_tag) if primary_tag else "None"
+                cover_art = f"Items/{model_id}/Images/Primary?={primary_tag}" if primary_tag else "None"
 
                 self.loaded_models.get(model_id).update_data(
                     id=artist.get("Id"),
@@ -400,19 +397,10 @@ class Jellyfin(Base):
                 )
 
                 #Queue background session requests in order of importance: albums -> coverArt -> similar artists
-                if use_threading:
-                    time.sleep(0.5) #allow CPU cycles for main thread
-                    threading.Thread(target=get_albums, daemon=True).start()
-                    if(primary_tag):
-                        threading.Thread(target=self.updateCoverArt, kwargs={"model_id": model_id}, daemon=True).start()
-                    if not lite:
-                        threading.Thread(target=get_similar, daemon=True).start()
-                else:
-                    get_albums()
-                    if(primary_tag):
-                        threading.Thread(target=self.updateCoverArt, kwargs={"model_id": model_id}, daemon=True).start()
-                    if not lite:
-                        get_similar()
+                self.threads.submit(get_albums)
+                self.threads.submit(self.updateCoverArt, artist.get("Id"))
+                if not lite:
+                    self.threads.submit(get_similar)
 
             elif model_id in self.loaded_models:
                 del self.loaded_models[model_id]
@@ -466,7 +454,7 @@ class Jellyfin(Base):
             if model_id not in self.loaded_models:
                 self.loaded_models[model_id] = models.Artist(id=model_id)
             if use_threading:
-                threading.Thread(target=run, daemon=True).start()
+                self.threads.submit(run)
             else:
                 run()
 
@@ -497,7 +485,7 @@ class Jellyfin(Base):
                     ).get("Items", [])
 
                 primary_tag = album.get('ImageTags', {}).get('Primary', '')
-                cover_art = self.get_url('Items/{id}/Images/Primary?={tag_id}', id=model_id, tag_id=primary_tag) if primary_tag else "None"
+                cover_art = f"Items/{model_id}/Images/Primary?={primary_tag}" if primary_tag else "None"
 
                 duration = int(sum(song.get("RunTimeTicks", 0) for song in songs) / 10000000)
 
@@ -519,8 +507,7 @@ class Jellyfin(Base):
                     userRating=self.get_rating(album.get("Id")),
                     year=album.get("ProductionYear", 0)
                 )
-                if(album.get('ImageTags', {}).get('Primary', '')):
-                    threading.Thread(target=self.updateCoverArt, kwargs={"model_id": model_id}, daemon=True).start()
+                self.threads.submit(self.updateCoverArt, album.get("Id"))
             elif model_id in self.loaded_models:
                 del self.loaded_models[model_id]
 
@@ -532,7 +519,7 @@ class Jellyfin(Base):
             if model_id not in self.loaded_models:
                 self.loaded_models[model_id] = models.Album(id=model_id)
             if use_threading:
-                threading.Thread(target=run, daemon=True).start()
+                self.threads.submit(run)
             else:
                 run()
 
@@ -547,7 +534,7 @@ class Jellyfin(Base):
                 )
             if playlist.get("Id"):
                 primary_tag = playlist.get('ImageTags', {}).get('Primary', '')
-                cover_art = self.get_url('Items/{id}/Images/Primary?={tag_id}', id=model_id, tag_id=primary_tag) if primary_tag else "None"
+                cover_art = f"Items/{model_id}/Images/Primary?={primary_tag}" if primary_tag else "None"
 
                 self.loaded_models.get(model_id).update_data(
                     id=playlist.get("Id"),
@@ -555,16 +542,14 @@ class Jellyfin(Base):
                     coverArt=cover_art
                 )
                 if use_threading:
-                    threading.Thread(target=get_songs, daemon=True).start()
+                    self.threads.submit(get_songs)
                 else:
                     get_songs()
-                if(primary_tag):
-                    threading.Thread(target=self.updateCoverArt, kwargs={"model_id": model_id}, daemon=True).start()
+                self.threads.submit(self.updateCoverArt, playlist.get("Id"))
             elif model_id in self.loaded_models:
                 del self.loaded_models[model_id]
 
         def get_songs():
-            time.sleep(0.5)
             params = {
                 "UserId": self.get_property("userId"),
                 "Fields": "RunTimeTicks"
@@ -599,7 +584,7 @@ class Jellyfin(Base):
             if model_id not in self.loaded_models:
                 self.loaded_models[model_id] = models.Playlist(id=model_id)
             if use_threading:
-                threading.Thread(target=run, daemon=True).start()
+                self.threads.submit(run)
             else:
                 run()
 
@@ -617,22 +602,21 @@ class Jellyfin(Base):
                     params=params
                 )
 
-            cover_art = "None"
-            primary_tag = song.get('ImageTags', {}).get('Primary', '')
-
-            #Check for cover art on Song object and query Album object if it's missing
-            if primary_tag:
-                cover_art = self.get_url('Items/{id}/Images/Primary?={tag_id}', id=model_id, tag_id=primary_tag)
-            else:
-                album = self.make_request(
-                    action='Users/{userId}/Items/{id}',
-                    action_keys={"id": song.get("AlbumId")},
-                    mode="GET"
-                )
-                if primary_tag := album.get('ImageTags', {}).get('Primary', ''):
-                    cover_art = self.get_url('Items/{id}/Images/Primary?={tag_id}', id=song.get("AlbumId"), tag_id=primary_tag)
-
             if song.get("Id"):
+                cover_art = "None"
+
+                #Check for cover art on Song object and query Album object if it's missing
+                if primary_tag := song.get('ImageTags', {}).get('Primary', ''):
+                    cover_art = f"Items/{model_id}/Images/Primary?={primary_tag}"
+                else:
+                    album = self.make_request(
+                        action='Users/{userId}/Items/{id}',
+                        action_keys={"id": song.get("AlbumId")},
+                        mode="GET"
+                    )
+                    if album_id := album.get("Id"):
+                        if primary_tag := album.get('ImageTags', {}).get('Primary', ''):
+                            cover_art = f"Items/{album_id}/Images/Primary?={primary_tag}"
                 duration = int(song.get("RunTimeTicks", 0) / 10000000)
                 self.loaded_models.get(model_id).update_data(
                     id=song.get("Id"),
@@ -651,8 +635,7 @@ class Jellyfin(Base):
                     trackGain=song.get("NormalizationGain") or 0.0,
                     userRating=self.get_rating(model_id)
                 )
-                if(song.get('ImageTags', {}).get('Primary', '')):
-                    threading.Thread(target=self.updateCoverArt, kwargs={"model_id": model_id}, daemon=True).start()
+                self.threads.submit(self.updateCoverArt, song.get("Id"))
             elif model_id in self.loaded_models:
                 self.loaded_models.get(model_id).set_property('deleted', True)
                 del self.loaded_models[model_id]
@@ -665,7 +648,7 @@ class Jellyfin(Base):
             if model_id not in self.loaded_models:
                 self.loaded_models[model_id] = models.Song(id=model_id)
             if use_threading:
-                threading.Thread(target=run, daemon=True).start()
+                self.threads.submit(run)
             else:
                 run()
 
@@ -745,12 +728,8 @@ class Jellyfin(Base):
             }
         ).get("Items", [])
 
-        id_list = []
-        for song in songs:
-            if song.get("Id"):
-                self.verifySong(song.get("Id"), song_object=song)
-                id_list.append(song.get("Id"))
-        return id_list
+        self.__bulk_verify("Audio", songs)
+        return [song.get("Id") for song in songs]
 
     def getRandomSongs(self, size:int=20) -> list:
         songs = self.make_request(
@@ -767,12 +746,8 @@ class Jellyfin(Base):
             }
         ).get('Items', [])
 
-        id_list = []
-        for song in songs:
-            if song.get("Id"):
-                self.verifySong(song.get("Id"), song_object=song)
-                id_list.append(song.get("Id"))
-        return id_list
+        self.__bulk_verify("Audio", songs)
+        return [song.get("Id") for song in songs]
 
     def getLyrics(self, songId:str) -> dict:
         result = self.make_request(
@@ -802,6 +777,8 @@ class Jellyfin(Base):
         return {'type': 'not-found'}
 
     def __fetch_type(self, item_type:str, query:str, limit:int=5, offset:int=0, fields:str="", verify:bool=False):
+        if limit == 0:
+            return []
         # Method exclusive to Jellyfin, helper for searches
         items = []
         if item_type == "MusicArtist":
@@ -843,13 +820,13 @@ class Jellyfin(Base):
         #Method exclusive to Jellyfin, pre-verifies response objects so the UI loads faster
         for item in items:
             if item_type == "MusicArtist":
-                self.verifyArtist(item.get("Id"), artist_object=item, lite=True)
+                self.verifyArtist(item.get("Id"), artist_object=item, use_threading=False, lite=True)
             elif item_type == "MusicAlbum":
-                self.verifyAlbum(item.get("Id"), album_object=item, lite=True)
+                self.verifyAlbum(item.get("Id"), album_object=item, use_threading=False, lite=True)
             elif item_type == "Audio":
-                self.verifySong(item.get("Id"), song_object=item)
+                self.verifySong(item.get("Id"), use_threading=False, song_object=item)
             elif item_type == "Playlist":
-                self.verifyPlaylist(item.get("Id"), playlist_object=item, lite=True)
+                self.verifyPlaylist(item.get("Id"), use_threading=False, playlist_object=item, lite=True)
 
     def search(self, query:str, artistCount:int=0, artistOffset:int=0, albumCount:int=0, albumOffset:int=0, songCount:int=0, songOffset:int=0, playlistCount:int=0, playlistOffset:int=0) -> dict:
         return {
@@ -922,7 +899,7 @@ class Jellyfin(Base):
         for radio in radios:
             if radio.get("Id") not in self.cache_actions.get('deleted-radios'):
                 primary_tag = radio.get('ImageTags', {}).get('Primary', '')
-                cover_art = self.get_url('Items/{id}/Images/Primary?={tag_id}', id=radio.get("Id"), tag_id=primary_tag) if primary_tag else "None"
+                cover_art = f"Items/{radio.get('Id')}/Images/Primary?={primary_tag}" if primary_tag else "None"
 
                 radio_model = models.Song(
                     id=radio.get("Id"),
