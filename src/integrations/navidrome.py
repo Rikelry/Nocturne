@@ -331,7 +331,7 @@ class Navidrome(Base):
 
         if force_update:
             if use_threading:
-                self.threads.submit(self.updateCoverArt, model_id)
+                self.threads.submit(update)
             else:
                 update()
 

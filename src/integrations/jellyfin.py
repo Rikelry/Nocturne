@@ -450,9 +450,11 @@ class Jellyfin(Base):
             logger.debug("Empty Artist model_id, aborting.")
             return
 
-        if model_id not in self.loaded_models or force_update:
-            if model_id not in self.loaded_models:
-                self.loaded_models[model_id] = models.Artist(id=model_id)
+        if model_id not in self.loaded_models:
+            self.loaded_models[model_id] = models.Artist(id=model_id)
+            force_update = True
+
+        if force_update:
             if use_threading:
                 self.threads.submit(run)
             else:
@@ -515,9 +517,11 @@ class Jellyfin(Base):
             logger.debug("Empty Album model_id, aborting.")
             return
 
-        if model_id not in self.loaded_models or force_update:
-            if model_id not in self.loaded_models:
-                self.loaded_models[model_id] = models.Album(id=model_id)
+        if model_id not in self.loaded_models:
+            self.loaded_models[model_id] = models.Album(id=model_id)
+            force_update = True
+
+        if force_update:
             if use_threading:
                 self.threads.submit(run)
             else:
@@ -580,18 +584,20 @@ class Jellyfin(Base):
             logger.debug("Empty Playlist model_id, aborting.")
             return
 
-        if model_id not in self.loaded_models or force_update:
-            if model_id not in self.loaded_models:
-                self.loaded_models[model_id] = models.Playlist(id=model_id)
+        if model_id not in self.loaded_models:
+            self.loaded_models[model_id] = models.Playlist(id=model_id)
+            force_update = True
+
+        if force_update:
             if use_threading:
                 self.threads.submit(run)
             else:
                 run()
 
-    def verifySong(self, model_id:str, force_update:bool=False, use_threading:bool=True, song_object:models.Song=None):
+    def verifySong(self, model_id:str, force_update:bool=False, use_threading:bool=True, song_dict:dict={}):
         def run():
-            song = song_object
-            if song is None:
+            song = song_dict
+            if not song:
                 params = {
                     "Fields": "ArtistItems,AlbumId,RunTimeTicks,UserData,IndexNumber,ParentIndexNumber"
                 }
@@ -601,7 +607,6 @@ class Jellyfin(Base):
                     mode='GET',
                     params=params
                 )
-
             if song.get("Id"):
                 cover_art = "None"
 
@@ -644,9 +649,11 @@ class Jellyfin(Base):
             logger.debug("Empty Song model_id, aborting.")
             return
 
-        if model_id not in self.loaded_models or force_update:
-            if model_id not in self.loaded_models:
-                self.loaded_models[model_id] = models.Song(id=model_id)
+        if model_id not in self.loaded_models:
+            self.loaded_models[model_id] = models.Song(id=model_id)
+            force_update = True
+
+        if force_update:
             if use_threading:
                 self.threads.submit(run)
             else:
@@ -824,7 +831,7 @@ class Jellyfin(Base):
             elif item_type == "MusicAlbum":
                 self.verifyAlbum(item.get("Id"), album_object=item, use_threading=False, lite=True)
             elif item_type == "Audio":
-                self.verifySong(item.get("Id"), use_threading=False, song_object=item)
+                self.verifySong(item.get("Id"), use_threading=False, song_dict=item)
             elif item_type == "Playlist":
                 self.verifyPlaylist(item.get("Id"), use_threading=False, playlist_object=item, lite=True)
 
