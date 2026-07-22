@@ -326,9 +326,6 @@ class NocturneWindow(Adw.ApplicationWindow):
         self.dynamic_bg_mode_changed(self.settings, 'player-dynamic-bg-mode', '')
         self.settings.connect('changed::use-sidebar-player', lambda *_: self.big_breakpoint_toggled())
 
-        self.last_time = time.time()
-        self.add_tick_callback(self.on_tick)
-
     def css_toggled(self, settings, key, css_class):
         if settings.get_value(key).unpack():
             self.add_css_class(css_class)
@@ -367,12 +364,4 @@ class NocturneWindow(Adw.ApplicationWindow):
                 self.main_bottom_sheet.set_open(False)
         if not song_playing:
             self.main_bottom_sheet.set_open(False)
-
-    def on_tick(self, widget, frame_clock):
-        current_time = time.time()
-        delta = current_time - self.last_time
-        self.last_time = current_time
-        if delta > 0.100:
-            print(f"[FREEZE DETECTED] {delta * 1000:.2f} ms")
-        return True
 
