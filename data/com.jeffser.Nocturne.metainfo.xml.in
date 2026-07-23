@@ -97,8 +97,25 @@
   </keywords>
 
   <releases>
+    <release version="1.4.3" date="2026-07-22">
+      <url type="details">https://github.com/Jeffser/Nocturne/releases/tag/1.4.33</url>
+      <description translate="no">
+        <p>New</p>
+        <ul>
+          <li>Lyrics fetcher now uses the database to store downloaded lyrics</li>
+          <li>Added option to hide singles (albums with only one song)</li>
+          <li>Song switching is now faster</li>
+          <li>Optimisations to OpenSubsonic and Jellyfin instances</li>
+        </ul>
+        <p>Fix</p>
+        <ul>
+          <li>Fixed box shadow for carousels</li>
+          <li>Fixed list view for songs not working properly</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.4.2" date="2026-07-21">
-      <url type="details">https://github.com/Jeffser/Nocturne/releases/tag/1.4.1</url>
+      <url type="details">https://github.com/Jeffser/Nocturne/releases/tag/1.4.2</url>
       <description translate="no">
         <p>Fix</p>
         <ul>
